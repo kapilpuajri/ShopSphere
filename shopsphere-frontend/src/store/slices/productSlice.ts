@@ -19,6 +19,7 @@ interface ProductState {
   products: Product[];
   currentProduct: Product | null;
   recommendations: Product[];
+  frequentlyBoughtTogether: Product[];
   loading: boolean;
   error: string | null;
   searchQuery: string;
@@ -29,6 +30,7 @@ const initialState: ProductState = {
   products: [],
   currentProduct: null,
   recommendations: [],
+  frequentlyBoughtTogether: [],
   loading: false,
   error: null,
   searchQuery: '',
@@ -73,6 +75,19 @@ export const fetchRecommendations = createAsyncThunk(
   async (productId: number) => {
     const response = await axios.get(`${API_URL}/products/${productId}/recommendations`);
     return response.data;
+  }
+);
+
+export const fetchFrequentlyBoughtTogether = createAsyncThunk(
+  'products/fetchFrequentlyBoughtTogether',
+  async (productId: number) => {
+    try {
+      const response = await axios.get(`${API_URL}/products/${productId}/frequently-bought-together`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Error fetching frequently bought together:', error);
+      return []; // Return empty array on error
+    }
   }
 );
 
@@ -132,6 +147,12 @@ const productSlice = createSlice({
       })
       .addCase(fetchRecommendations.rejected, (state) => {
         state.recommendations = [];
+      })
+      .addCase(fetchFrequentlyBoughtTogether.fulfilled, (state, action) => {
+        state.frequentlyBoughtTogether = action.payload;
+      })
+      .addCase(fetchFrequentlyBoughtTogether.rejected, (state) => {
+        state.frequentlyBoughtTogether = [];
       });
   },
 });

@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../../hooks/redux';
-import { fetchProductById, fetchRecommendations, fetchProducts } from '../../store/slices/productSlice';
+import { fetchProductById, fetchRecommendations, fetchFrequentlyBoughtTogether, fetchProducts } from '../../store/slices/productSlice';
 import ProductList from './ProductList';
 import { addToCart } from '../../store/slices/cartSlice';
 import { toast } from 'react-hot-toast';
@@ -22,7 +22,7 @@ const ProductDetailFlipkartStyle: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
-  const { currentProduct, recommendations, products, loading, error } = useAppSelector(state => state.products);
+  const { currentProduct, recommendations, frequentlyBoughtTogether, products, loading, error } = useAppSelector(state => state.products);
   const { user } = useAppSelector(state => state.auth);
   const userId = user?.id || 1;
   const [imageError, setImageError] = useState(false);
@@ -38,6 +38,10 @@ const ProductDetailFlipkartStyle: React.FC = () => {
       if (!isNaN(productId) && productId > 0) {
         dispatch(fetchProductById(productId));
         dispatch(fetchRecommendations(productId));
+        dispatch(fetchFrequentlyBoughtTogether(productId));
+        // Reset image error state when product changes
+        setImageError(false);
+        setSelectedImage(0);
       }
     }
   }, [id, dispatch]);
@@ -48,6 +52,15 @@ const ProductDetailFlipkartStyle: React.FC = () => {
       dispatch(fetchProducts());
     }
   }, [products.length, dispatch]);
+
+  // Force image reload when product changes
+  useEffect(() => {
+    if (currentProduct) {
+      // Reset image error and selected image when product changes
+      setImageError(false);
+      setSelectedImage(0);
+    }
+  }, [currentProduct?.id]);
 
   // Get similar products from same category
   const similarProducts = useMemo(() => {
@@ -86,13 +99,45 @@ const ProductDetailFlipkartStyle: React.FC = () => {
     toast.success(isWishlisted ? 'Removed from wishlist' : 'Added to wishlist');
   };
 
-  // Product images array (in real app, this would come from backend)
-  const productImages = currentProduct ? [
-    currentProduct.imageUrl || defaultImage,
-    currentProduct.imageUrl || defaultImage,
-    currentProduct.imageUrl || defaultImage,
-    currentProduct.imageUrl || defaultImage,
-  ] : [];
+  // Product images array - for iPhone 15 Pro, show 5 different angles
+  // Add cache-busting parameter based on product ID to force image refresh when product changes
+  const getImageUrl = (url: string) => {
+    if (!url || !currentProduct) return defaultImage;
+    // Add product ID as cache-busting parameter to force browser to reload image when product changes
+    const separator = url.includes('?') ? '&' : '?';
+    return `${url}${separator}v=${currentProduct.id}`;
+  };
+
+  // iPhone 15 Pro images from different angles (from Unsplash)
+  // Using different Unsplash photo IDs for various iPhone 15 Pro angles
+  // Sources: https://unsplash.com/s/photos/iphone-15-pro
+  const getIPhone15ProImages = () => {
+    const baseUrl = 'https://images.unsplash.com/photo';
+    // 5 different iPhone 15 Pro images from different angles
+    const imageUrls = [
+      `${baseUrl}-1592750475338-74b7b21085ab?w=600&h=600&fit=crop`, // Front view - white iPhone on colorful background
+      `${baseUrl}-1511707171634-5f897ff02aa9?w=600&h=600&fit=crop`, // Side/angled view - smartphone
+      `${baseUrl}-1541807084-5c52b6b3adef?w=600&h=600&fit=crop`, // Top view - device detail
+      `${baseUrl}-1496181133206-80ce9b88a853?w=600&h=600&fit=crop`, // Back view - device
+      `${baseUrl}-1544244015-0df4b3a78725?w=600&h=600&fit=crop`, // Close-up detail - tablet/device
+    ];
+    return imageUrls.map(url => getImageUrl(url));
+  };
+
+  // Check if product is iPhone 15 Pro
+  const isIPhone15Pro = currentProduct?.name?.toLowerCase().includes('iphone 15 pro');
+
+  const productImages = currentProduct ? (
+    isIPhone15Pro 
+      ? getIPhone15ProImages() // 5 different angles for iPhone 15 Pro
+      : [
+          // For other products, use the main image (can be expanded later)
+          getImageUrl(currentProduct.imageUrl || defaultImage),
+          getImageUrl(currentProduct.imageUrl || defaultImage),
+          getImageUrl(currentProduct.imageUrl || defaultImage),
+          getImageUrl(currentProduct.imageUrl || defaultImage),
+        ]
+  ) : [];
 
   // Calculate discount
   const originalPrice = currentProduct ? currentProduct.price * 1.2 : 0;
@@ -175,6 +220,7 @@ const ProductDetailFlipkartStyle: React.FC = () => {
             <div>
               <div className="mb-4 bg-gray-50 rounded-lg p-4">
                 <img
+                  key={`product-${currentProduct.id}-${selectedImage}`}
                   src={productImages[selectedImage] || defaultImage}
                   alt={currentProduct.name}
                   onError={() => setImageError(true)}
@@ -192,6 +238,7 @@ const ProductDetailFlipkartStyle: React.FC = () => {
                     }`}
                   >
                     <img
+                      key={`thumb-${currentProduct.id}-${idx}`}
                       src={img}
                       alt={`${currentProduct.name} view ${idx + 1}`}
                       className="w-full h-full object-contain bg-gray-50"
@@ -502,16 +549,29 @@ const ProductDetailFlipkartStyle: React.FC = () => {
           </div>
         </div>
 
-        {/* Frequently Bought Together - Flipkart Style */}
-        {recommendations.length > 0 && (
+        {/* Frequently Bought Together Section */}
+        {frequentlyBoughtTogether.length > 0 && (
           <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
             <h2 className="text-2xl font-bold text-gray-900 mb-6">Frequently Bought Together</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {recommendations.slice(0, 4).map((product) => (
+            <p className="text-gray-600 mb-4 text-sm">Customers who bought this item also bought:</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {frequentlyBoughtTogether.map((product) => (
                 <ProductCard key={product.id} product={product} />
               ))}
             </div>
-            {recommendations.length > 4 && (
+          </div>
+        )}
+
+        {/* You May Also Like / Recommendations Section */}
+        {recommendations.length > 0 && (
+          <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">You May Also Like</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {recommendations.slice(0, 8).map((product) => (
+                <ProductCard key={product.id} product={product} />
+              ))}
+            </div>
+            {recommendations.length > 8 && (
               <div className="mt-6 text-center">
                 <button
                   onClick={() => navigate('/products')}

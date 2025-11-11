@@ -54,6 +54,40 @@ public class RecommendationService {
     }
     
     /**
+     * Get frequently bought together products for a given product
+     * Returns products that are commonly purchased together with high association strength
+     */
+    @Cacheable(value = "frequentlyBoughtTogether", key = "#productId")
+    public List<Product> getFrequentlyBoughtTogether(Long productId) {
+        List<ProductAssociation> associations = 
+            associationRepository.findTopAssociationsByProductIdOrderByAssociationStrengthDesc(productId);
+        
+        List<Product> frequentlyBought = associations.stream()
+            .filter(pa -> pa.getType() == ProductAssociation.AssociationType.FREQUENTLY_BOUGHT_TOGETHER)
+            .sorted((a1, a2) -> Double.compare(a2.getAssociationStrength(), a1.getAssociationStrength()))
+            .map(ProductAssociation::getAssociatedProduct)
+            .filter(p -> p.getStock() > 0) // Only show in-stock products
+            .limit(6) // Limit to top 6 frequently bought together items
+            .collect(Collectors.toList());
+        
+        // If not enough frequently bought together items, add complementary items with high strength
+        if (frequentlyBought.size() < 4) {
+            List<Product> complementary = associations.stream()
+                .filter(pa -> pa.getType() == ProductAssociation.AssociationType.COMPLEMENTARY)
+                .filter(pa -> pa.getAssociationStrength() >= 0.85) // High strength complementary items
+                .sorted((a1, a2) -> Double.compare(a2.getAssociationStrength(), a1.getAssociationStrength()))
+                .map(ProductAssociation::getAssociatedProduct)
+                .filter(p -> p.getStock() > 0)
+                .filter(p -> frequentlyBought.stream().noneMatch(fb -> fb.getId().equals(p.getId())))
+                .limit(4 - frequentlyBought.size())
+                .collect(Collectors.toList());
+            frequentlyBought.addAll(complementary);
+        }
+        
+        return frequentlyBought;
+    }
+    
+    /**
      * Get recommendations based on cart items
      */
     public List<Product> getCartRecommendations(List<Long> productIds) {

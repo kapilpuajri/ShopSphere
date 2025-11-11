@@ -61,6 +61,16 @@ public class ProductController {
         }
     }
     
+    @GetMapping("/{id}/frequently-bought-together")
+    public ResponseEntity<List<Product>> getFrequentlyBoughtTogether(@PathVariable Long id) {
+        try {
+            return ResponseEntity.ok(recommendationService.getFrequentlyBoughtTogether(id));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.ok(List.of()); // Return empty list on error instead of 500
+        }
+    }
+    
     @PostMapping
     public ResponseEntity<Product> createProduct(@RequestBody Product product) {
         return ResponseEntity.ok(productService.saveProduct(product));

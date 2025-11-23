@@ -15,6 +15,7 @@ import {
   ArrowLeftIcon
 } from '@heroicons/react/24/outline';
 import { HeartIcon as HeartIconSolid, StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
+import { formatPrice, calculateDiscount, calculateOriginalPrice } from '../../utils/currency';
 
 const ProductDetailEnhanced: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -90,9 +91,9 @@ const ProductDetailEnhanced: React.FC = () => {
     currentProduct.imageUrl || defaultImage,
   ] : [];
 
-  // Calculate discount
-  const originalPrice = currentProduct ? currentProduct.price * 1.2 : 0;
-  const discount = currentProduct ? Math.round(((originalPrice - currentProduct.price) / originalPrice) * 100) : 0;
+  // Calculate varied discount (5% to 50%) based on product ID
+  const discount = currentProduct ? calculateDiscount(currentProduct.id) : 0;
+  const originalPrice = currentProduct ? calculateOriginalPrice(currentProduct.price, discount) : 0;
 
   if (loading) {
     return (
@@ -191,12 +192,12 @@ const ProductDetailEnhanced: React.FC = () => {
               <div className="mb-6 pb-6 border-b border-gray-200">
                 <div className="flex items-baseline gap-3 mb-2">
                   <span className="text-4xl font-bold text-gray-900">
-                    ${currentProduct.price.toFixed(2)}
+                    {formatPrice(currentProduct.price)}
                   </span>
                   {discount > 0 && (
                     <>
                       <span className="text-xl text-gray-500 line-through">
-                        ${originalPrice.toFixed(2)}
+                        {formatPrice(originalPrice)}
                       </span>
                       <span className="text-lg text-green-600 font-semibold">
                         {discount}% off
@@ -204,9 +205,11 @@ const ProductDetailEnhanced: React.FC = () => {
                     </>
                   )}
                 </div>
-                <p className="text-sm text-green-600 font-medium">
-                  You save ${(originalPrice - currentProduct.price).toFixed(2)}
-                </p>
+                {discount > 0 && (
+                  <p className="text-sm text-green-600 font-medium">
+                    You save {formatPrice(originalPrice - currentProduct.price)}
+                  </p>
+                )}
               </div>
 
               {/* Highlights */}

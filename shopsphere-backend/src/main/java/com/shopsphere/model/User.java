@@ -28,6 +28,9 @@ public class User {
     private String lastName;
     private String phone;
     private String address;
+    private String city;
+    private String zipCode;
+    private String country;
     
     @Enumerated(EnumType.STRING)
     private Role role = Role.USER;

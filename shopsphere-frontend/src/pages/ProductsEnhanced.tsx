@@ -20,6 +20,7 @@ const ProductsEnhanced: React.FC = () => {
   const [selectedCategory, setSelectedCategoryLocal] = useState<string | null>(null);
 
   useEffect(() => {
+    console.log('ProductsEnhanced: Fetching products...');
     dispatch(fetchProducts());
   }, [dispatch]);
 
@@ -62,6 +63,12 @@ const ProductsEnhanced: React.FC = () => {
 
     return filtered;
   }, [products, selectedCategory, priceRange, selectedRating, sortBy]);
+
+  useEffect(() => {
+    console.log('ProductsEnhanced: Products updated:', products.length);
+    console.log('ProductsEnhanced: Filtered products:', filteredProducts.length);
+    console.log('ProductsEnhanced: Loading:', loading);
+  }, [products, filteredProducts, loading]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();

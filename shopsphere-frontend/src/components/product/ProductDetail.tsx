@@ -4,6 +4,7 @@ import { useAppDispatch, useAppSelector } from '../../hooks/redux';
 import { fetchProductById, fetchRecommendations } from '../../store/slices/productSlice';
 import ProductList from './ProductList';
 import { addToCart } from '../../store/slices/cartSlice';
+import { formatPrice } from '../../utils/currency';
 
 const ProductDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -84,7 +85,7 @@ const ProductDetail: React.FC = () => {
             </span>
           </div>
           <p className="text-3xl font-bold text-primary-600 mb-6">
-            ${currentProduct.price.toFixed(2)}
+            {formatPrice(currentProduct.price)}
           </p>
           <p className="text-gray-700 mb-6">{currentProduct.description}</p>
           <div className="mb-6">

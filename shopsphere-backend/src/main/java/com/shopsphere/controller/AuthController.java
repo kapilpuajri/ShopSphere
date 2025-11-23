@@ -98,7 +98,42 @@ public class AuthController {
             return ResponseEntity.badRequest().body(error);
         }
     }
+    
+    @GetMapping("/profile/{userId}")
+    public ResponseEntity<?> getUserProfile(@PathVariable Long userId) {
+        try {
+            Optional<User> userOpt = userRepository.findById(userId);
+            if (userOpt.isEmpty()) {
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "User not found");
+                return ResponseEntity.notFound().build();
+            }
+            
+            User user = userOpt.get();
+            Map<String, Object> profile = new HashMap<>();
+            profile.put("id", user.getId());
+            profile.put("email", user.getEmail());
+            profile.put("firstName", user.getFirstName());
+            profile.put("lastName", user.getLastName());
+            profile.put("phone", user.getPhone());
+            profile.put("address", user.getAddress());
+            profile.put("city", user.getCity());
+            profile.put("zipCode", user.getZipCode());
+            profile.put("country", user.getCountry());
+            
+            return ResponseEntity.ok(profile);
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Failed to fetch profile: " + e.getMessage());
+            return ResponseEntity.badRequest().body(error);
+        }
+    }
 }
+
+
+
+
+
 
 
 

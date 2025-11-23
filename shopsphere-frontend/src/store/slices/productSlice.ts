@@ -40,8 +40,16 @@ const initialState: ProductState = {
 export const fetchProducts = createAsyncThunk(
   'products/fetchAll',
   async () => {
-    const response = await axios.get(`${API_URL}/products`);
-    return response.data;
+    console.log('fetchProducts: Fetching from', `${API_URL}/products`);
+    try {
+      const response = await axios.get(`${API_URL}/products`);
+      console.log('fetchProducts: Response received:', response.data?.length || 0, 'products');
+      return response.data;
+    } catch (error: any) {
+      console.error('fetchProducts: Error fetching products:', error);
+      console.error('fetchProducts: Error details:', error.response?.data);
+      throw error;
+    }
   }
 );
 

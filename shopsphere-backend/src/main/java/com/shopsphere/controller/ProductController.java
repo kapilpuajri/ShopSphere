@@ -64,9 +64,12 @@ public class ProductController {
     @GetMapping("/{id}/frequently-bought-together")
     public ResponseEntity<List<Product>> getFrequentlyBoughtTogether(@PathVariable Long id) {
         try {
-            return ResponseEntity.ok(recommendationService.getFrequentlyBoughtTogether(id));
+            List<Product> result = recommendationService.getFrequentlyBoughtTogether(id);
+            System.out.println("Frequently bought together for product " + id + ": " + result.size() + " products");
+            return ResponseEntity.ok(result);
         } catch (Exception e) {
             e.printStackTrace();
+            System.err.println("Error in getFrequentlyBoughtTogether: " + e.getMessage());
             return ResponseEntity.ok(List.of()); // Return empty list on error instead of 500
         }
     }

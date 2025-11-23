@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../hooks/redux';
 import { fetchCart, removeFromCart } from '../store/slices/cartSlice';
 import ProductList from '../components/product/ProductList';
+import { formatPrice } from '../utils/currency';
 
 const Cart: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -51,7 +52,7 @@ const Cart: React.FC = () => {
                   <div className="flex-1">
                     <h3 className="text-lg font-semibold">{item.product.name}</h3>
                     <p className="text-primary-600 font-bold">
-                      ${item.product.price.toFixed(2)}
+                      {formatPrice(item.product.price)}
                     </p>
                     <p className="text-gray-600">Quantity: {item.quantity}</p>
                   </div>
@@ -71,15 +72,15 @@ const Cart: React.FC = () => {
                 <div className="space-y-2 mb-4">
                   <div className="flex justify-between">
                     <span>Subtotal</span>
-                    <span>${total.toFixed(2)}</span>
+                    <span>{formatPrice(total)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Shipping</span>
-                    <span>$10.00</span>
+                    <span>{formatPrice(10)}</span>
                   </div>
                   <div className="border-t pt-2 flex justify-between font-bold text-xl">
                     <span>Total</span>
-                    <span>${(total + 10).toFixed(2)}</span>
+                    <span>{formatPrice(total + 10)}</span>
                   </div>
                 </div>
                 <Link

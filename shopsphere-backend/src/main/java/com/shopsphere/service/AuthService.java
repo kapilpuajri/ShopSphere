@@ -2,7 +2,6 @@ package com.shopsphere.service;
 
 import com.shopsphere.model.User;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -28,11 +27,11 @@ public class AuthService {
         claims.put("role", user.getRole().toString());
         
         return Jwts.builder()
-            .setClaims(claims)
-            .setSubject(user.getEmail())
-            .setIssuedAt(new Date())
-            .setExpiration(new Date(System.currentTimeMillis() + expiration))
-            .signWith(getSigningKey(), SignatureAlgorithm.HS256)
+            .claims(claims)
+            .subject(user.getEmail())
+            .issuedAt(new Date())
+            .expiration(new Date(System.currentTimeMillis() + expiration))
+            .signWith(getSigningKey())
             .compact();
     }
     
@@ -41,6 +40,11 @@ public class AuthService {
         return Keys.hmacShaKeyFor(keyBytes);
     }
 }
+
+
+
+
+
 
 
 

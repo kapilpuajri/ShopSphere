@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppSelector, useAppDispatch } from '../hooks/redux';
 import { clearCart } from '../store/slices/cartSlice';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
+import { formatPrice } from '../utils/currency';
 
 const Checkout: React.FC = () => {
   const { items } = useAppSelector(state => state.cart);
@@ -19,6 +20,39 @@ const Checkout: React.FC = () => {
     phone: '',
     paymentMethod: 'card',
   });
+
+  // Load saved shipping address from user profile
+  useEffect(() => {
+    const loadSavedAddress = async () => {
+      if (user?.id) {
+        try {
+          const response = await axios.get(`http://localhost:8080/api/auth/profile/${user.id}`, {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem('token')}`,
+            },
+          });
+          
+          if (response.data) {
+            setFormData(prev => ({
+              ...prev,
+              shippingAddress: response.data.address || '',
+              city: response.data.city || '',
+              zipCode: response.data.zipCode || '',
+              country: response.data.country || '',
+              phone: response.data.phone || '',
+            }));
+          }
+        } catch (error) {
+          // Silently fail - user might not have saved address yet
+          console.log('No saved address found');
+        }
+      }
+    };
+
+    if (isAuthenticated && user?.id) {
+      loadSavedAddress();
+    }
+  }, [user, isAuthenticated]);
 
   const subtotal = items.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
   const shipping = 10;
@@ -61,19 +95,69 @@ const Checkout: React.FC = () => {
         totalAmount: total,
         shippingAddress: `${formData.shippingAddress}, ${formData.city}, ${formData.zipCode}, ${formData.country}`,
         paymentMethod: formData.paymentMethod,
+        phone: formData.phone,
+        city: formData.city,
+        zipCode: formData.zipCode,
+        country: formData.country,
       };
 
-      await axios.post('http://localhost:8080/api/orders', orderData, {
+      console.log('=== Placing Order ===');
+      console.log('User ID from Redux:', user?.id);
+      console.log('User ID type:', typeof user?.id);
+      console.log('Order data:', orderData);
+      console.log('Order data userId:', orderData.userId);
+      console.log('Order data userId type:', typeof orderData.userId);
+      
+      const response = await axios.post('http://localhost:8080/api/orders', orderData, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem('token')}`,
         },
       });
 
-      dispatch(clearCart());
-      toast.success('Order placed successfully!');
-      navigate('/orders');
+      console.log('Order response status:', response.status);
+      console.log('Order response data:', response.data);
+      if (response.data && response.data.user) {
+        console.log('Order user ID from response:', response.data.user.id);
+      }
+      
+      // If we get a 200 status, the order was created successfully
+      // The backend returns the Order object directly with fields like id, totalAmount, etc.
+      if (response.status === 200 && response.data) {
+        // Verify we have a valid order response (should have totalAmount or id)
+        const hasValidOrderData = response.data.totalAmount !== undefined || 
+                                  response.data.id !== undefined ||
+                                  response.data.status !== undefined;
+        
+        if (hasValidOrderData) {
+          dispatch(clearCart());
+          toast.success('Order placed successfully!');
+          console.log('Order created successfully, redirecting to orders page...');
+          console.log('Order ID:', response.data.id);
+          console.log('Order user ID:', response.data.user?.id);
+          // Increased delay to ensure order is fully committed to database
+          setTimeout(() => {
+            console.log('Navigating to orders page, user ID:', user?.id);
+            navigate('/orders');
+          }, 2000); // Increased to 2 seconds to ensure database commit
+        } else {
+          // Even if format is unexpected, if status is 200, order was likely created
+          console.warn('Unexpected response format, but status is 200. Proceeding...', response.data);
+          dispatch(clearCart());
+          toast.success('Order placed successfully!');
+          setTimeout(() => {
+            navigate('/orders');
+          }, 2000); // Increased to 2 seconds
+        }
+      } else {
+        throw new Error('Order creation failed - invalid response');
+      }
     } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Failed to place order');
+      console.error('Order placement error:', error);
+      const errorMessage = error.response?.data?.error || 
+                          error.response?.data?.message || 
+                          error.message || 
+                          'Failed to place order. Please try again.';
+      toast.error(errorMessage);
     }
   };
 
@@ -179,22 +263,22 @@ const Checkout: React.FC = () => {
               {items.map((item) => (
                 <div key={item.id} className="flex justify-between text-sm">
                   <span>{item.product.name} x{item.quantity}</span>
-                  <span>${(item.product.price * item.quantity).toFixed(2)}</span>
+                  <span>{formatPrice(item.product.price * item.quantity)}</span>
                 </div>
               ))}
             </div>
             <div className="border-t pt-4 space-y-2">
               <div className="flex justify-between">
                 <span>Subtotal</span>
-                <span>${subtotal.toFixed(2)}</span>
+                <span>{formatPrice(subtotal)}</span>
               </div>
               <div className="flex justify-between">
                 <span>Shipping</span>
-                <span>${shipping.toFixed(2)}</span>
+                <span>{formatPrice(shipping)}</span>
               </div>
               <div className="flex justify-between font-bold text-lg border-t pt-2">
                 <span>Total</span>
-                <span>${total.toFixed(2)}</span>
+                <span>{formatPrice(total)}</span>
               </div>
             </div>
           </div>
@@ -205,6 +289,11 @@ const Checkout: React.FC = () => {
 };
 
 export default Checkout;
+
+
+
+
+
 
 
 

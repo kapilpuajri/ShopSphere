@@ -7,6 +7,7 @@ import { addToWishlist, removeFromWishlist, checkWishlistStatus } from '../../st
 import { toast } from 'react-hot-toast';
 import { ShoppingCartIcon, HeartIcon } from '@heroicons/react/24/outline';
 import { HeartIcon as HeartIconSolid } from '@heroicons/react/24/solid';
+import { formatPrice, calculateDiscount, calculateOriginalPrice } from '../../utils/currency';
 
 interface ProductCardProps {
   product: Product;
@@ -91,9 +92,9 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     }
   };
 
-  // Calculate discount (mock - in real app, this would come from backend)
-  const originalPrice = product.price * 1.2;
-  const discount = Math.round(((originalPrice - product.price) / originalPrice) * 100);
+  // Calculate varied discount (5% to 50%) based on product ID
+  const discount = calculateDiscount(product.id);
+  const originalPrice = calculateOriginalPrice(product.price, discount);
 
   return (
     <div 
@@ -157,12 +158,12 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
         <div className="mb-3">
           <div className="flex items-baseline gap-2">
             <span className="text-lg font-bold text-gray-900">
-              ${product.price.toFixed(2)}
+              {formatPrice(product.price)}
             </span>
             {discount > 0 && (
               <>
                 <span className="text-sm text-gray-500 line-through">
-                  ${originalPrice.toFixed(2)}
+                  {formatPrice(originalPrice)}
                 </span>
                 <span className="text-xs text-green-600 font-semibold">
                   {discount}% off

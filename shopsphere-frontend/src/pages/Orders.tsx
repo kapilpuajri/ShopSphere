@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useState, useRef } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAppSelector } from '../hooks/redux';
 import axios from 'axios';
 import { Link } from 'react-router-dom';
+import { formatPrice } from '../utils/currency';
 
 interface Order {
   id: number;
@@ -23,8 +24,85 @@ interface Order {
 const Orders: React.FC = () => {
   const { user, isAuthenticated } = useAppSelector(state => state.auth);
   const navigate = useNavigate();
+  const location = useLocation();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const retryCountRef = useRef(0);
+  const maxRetries = 5;
+
+  const fetchOrders = async (retryDelay: number = 500) => {
+    if (!isAuthenticated || !user?.id) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      console.log('=== Fetching Orders (Attempt ' + (retryCountRef.current + 1) + ') ===');
+      console.log('User ID from Redux:', user?.id);
+      console.log('User ID type:', typeof user?.id);
+      
+      // Try using the new endpoint that gets user ID from JWT token
+      let response;
+      try {
+        console.log('Trying /my-orders endpoint (uses JWT token)...');
+        response = await axios.get(`http://localhost:8080/api/orders/my-orders`, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('token')}`,
+          },
+        });
+        console.log('Successfully used /my-orders endpoint');
+      } catch (myOrdersError: any) {
+        console.warn('my-orders endpoint failed, trying user/{id} endpoint...', myOrdersError.response?.data);
+        // Fallback to the original endpoint
+        response = await axios.get(`http://localhost:8080/api/orders/user/${user?.id}`, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('token')}`,
+          },
+        });
+      }
+      
+      console.log('Orders API response status:', response.status);
+      console.log('Orders API response data:', response.data);
+      // Ensure response.data is an array
+      const ordersData = Array.isArray(response.data) ? response.data : [];
+      setOrders(ordersData);
+      console.log('Fetched orders count:', ordersData.length);
+      if (ordersData.length > 0) {
+        console.log('First order:', ordersData[0]);
+        console.log('First order user ID:', ordersData[0].user?.id);
+        retryCountRef.current = 0; // Reset retry count on success
+      } else {
+        console.warn('No orders found');
+        // If no orders found and we haven't exceeded max retries, try again
+        if (retryCountRef.current < maxRetries) {
+          retryCountRef.current++;
+          console.log(`Retrying in ${retryDelay}ms... (Attempt ${retryCountRef.current}/${maxRetries})`);
+          setTimeout(() => {
+            fetchOrders(retryDelay * 1.5); // Exponential backoff
+          }, retryDelay);
+          return;
+        }
+      }
+    } catch (error: any) {
+      console.error('Failed to fetch orders:', error);
+      console.error('Error details:', error.response?.data);
+      console.error('Error status:', error.response?.status);
+      
+      // Retry on error if we haven't exceeded max retries
+      if (retryCountRef.current < maxRetries) {
+        retryCountRef.current++;
+        console.log(`Retrying after error in ${retryDelay}ms... (Attempt ${retryCountRef.current}/${maxRetries})`);
+        setTimeout(() => {
+          fetchOrders(retryDelay * 1.5);
+        }, retryDelay);
+        return;
+      }
+      
+      setOrders([]); // Set empty array on error after max retries
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -32,25 +110,16 @@ const Orders: React.FC = () => {
       return;
     }
 
-    const fetchOrders = async () => {
-      try {
-        const response = await axios.get(`http://localhost:8080/api/orders/user/${user?.id}`, {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem('token')}`,
-          },
-        });
-        setOrders(response.data);
-      } catch (error) {
-        console.error('Failed to fetch orders:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (user?.id) {
-      fetchOrders();
-    }
-  }, [user, isAuthenticated, navigate]);
+    // Reset retry count when component mounts or location changes
+    retryCountRef.current = 0;
+    
+    // Initial fetch with delay to ensure order is committed (especially after checkout)
+    const timer = setTimeout(() => {
+      fetchOrders(500);
+    }, 500);
+    
+    return () => clearTimeout(timer);
+  }, [user?.id, isAuthenticated, navigate, location.pathname]);
 
   if (!isAuthenticated) {
     return null;
@@ -64,9 +133,25 @@ const Orders: React.FC = () => {
     );
   }
 
+  const handleRefresh = async () => {
+    if (!user?.id || !isAuthenticated) return;
+    
+    retryCountRef.current = 0;
+    await fetchOrders(500);
+  };
+
   return (
     <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-8">My Orders</h1>
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-bold">My Orders</h1>
+        <button
+          onClick={handleRefresh}
+          disabled={loading}
+          className="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition disabled:opacity-50"
+        >
+          {loading ? 'Refreshing...' : 'Refresh Orders'}
+        </button>
+      </div>
 
       {orders.length === 0 ? (
         <div className="text-center py-12">
@@ -90,7 +175,7 @@ const Orders: React.FC = () => {
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-lg font-bold">${order.totalAmount.toFixed(2)}</p>
+                  <p className="text-lg font-bold">{formatPrice(order.totalAmount)}</p>
                   <span className={`inline-block px-3 py-1 rounded-full text-sm ${
                     order.status === 'DELIVERED' ? 'bg-green-100 text-green-800' :
                     order.status === 'SHIPPED' ? 'bg-blue-100 text-blue-800' :
@@ -126,7 +211,7 @@ const Orders: React.FC = () => {
                           <p className="text-sm text-gray-600">Quantity: {item.quantity}</p>
                         </div>
                       </div>
-                      <p className="font-medium">${(item.price * item.quantity).toFixed(2)}</p>
+                      <p className="font-medium">{formatPrice(item.price * item.quantity)}</p>
                     </div>
                   ))}
                 </div>

@@ -1,5 +1,6 @@
 package com.shopsphere.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -18,11 +19,12 @@ public class Order {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "user_id", nullable = false)
+    @JsonIgnore
     private User user;
     
-    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
     private List<OrderItem> orderItems;
     
     @Column(nullable = false, precision = 10, scale = 2)
@@ -52,6 +54,12 @@ public class Order {
         PENDING, PROCESSING, SHIPPED, DELIVERED, CANCELLED
     }
 }
+
+
+
+
+
+
 
 
 

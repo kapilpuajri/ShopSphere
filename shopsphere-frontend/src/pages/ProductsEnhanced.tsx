@@ -11,10 +11,10 @@ import {
 
 const ProductsEnhanced: React.FC = () => {
   const dispatch = useAppDispatch();
-  const { products, loading, searchQuery, error } = useAppSelector(state => state.products);
+  const { products, loading, searchQuery, error, selectedCategory: reduxSelectedCategory } = useAppSelector(state => state.products);
   const [localQuery, setLocalQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
-  const [priceRange, setPriceRange] = useState({ min: 0, max: 5000 });
+  const [priceRange, setPriceRange] = useState({ min: 0, max: 100000 });
   const [selectedRating, setSelectedRating] = useState<number | null>(null);
   const [sortBy, setSortBy] = useState('relevance');
   const [selectedCategory, setSelectedCategoryLocal] = useState<string | null>(null);
@@ -31,23 +31,58 @@ const ProductsEnhanced: React.FC = () => {
     }
   }, [searchQuery]);
 
+  // Sync selectedCategory with Redux state
+  useEffect(() => {
+    setSelectedCategoryLocal(reduxSelectedCategory);
+  }, [reduxSelectedCategory]);
+
+  // Initialize price range based on actual product prices (only once when products load)
+  const [priceRangeInitialized, setPriceRangeInitialized] = useState(false);
+  
+  useEffect(() => {
+    if (products.length > 0 && !priceRangeInitialized) {
+      const prices = products.map(p => p.price);
+      const maxProductPrice = Math.max(...prices);
+      const minProductPrice = Math.min(...prices);
+      setPriceRange({ 
+        min: Math.floor(minProductPrice), 
+        max: Math.ceil(maxProductPrice * 1.1) // 10% buffer
+      });
+      setPriceRangeInitialized(true);
+    }
+  }, [products.length, priceRangeInitialized]);
+
   const categories = Array.from(new Set(products.map(p => p.category)));
 
   // Filter and sort products
   const filteredProducts = React.useMemo(() => {
     let filtered = [...products];
 
+    console.log('Filtering products:', {
+      totalProducts: products.length,
+      selectedCategory,
+      priceRange,
+      selectedRating,
+      sortBy
+    });
+
     // Category filter
     if (selectedCategory) {
+      const beforeCategory = filtered.length;
       filtered = filtered.filter(p => p.category === selectedCategory);
+      console.log(`Category filter (${selectedCategory}): ${beforeCategory} -> ${filtered.length}`);
     }
 
     // Price filter
+    const beforePrice = filtered.length;
     filtered = filtered.filter(p => p.price >= priceRange.min && p.price <= priceRange.max);
+    console.log(`Price filter (${priceRange.min}-${priceRange.max}): ${beforePrice} -> ${filtered.length}`);
 
     // Rating filter
     if (selectedRating !== null) {
+      const beforeRating = filtered.length;
       filtered = filtered.filter(p => p.rating >= selectedRating);
+      console.log(`Rating filter (>=${selectedRating}): ${beforeRating} -> ${filtered.length}`);
     }
 
     // Sort
@@ -68,6 +103,7 @@ const ProductsEnhanced: React.FC = () => {
         break;
     }
 
+    console.log('Final filtered products:', filtered.length);
     return filtered;
   }, [products, selectedCategory, priceRange, selectedRating, sortBy]);
 
@@ -96,18 +132,22 @@ const ProductsEnhanced: React.FC = () => {
   };
 
   const clearFilters = () => {
+    console.log('Clearing all filters');
     setSelectedCategoryLocal(null);
-    setPriceRange({ min: 0, max: 5000 });
+    const maxProductPrice = products.length > 0 ? Math.max(...products.map(p => p.price)) : 100000;
+    const minProductPrice = products.length > 0 ? Math.min(...products.map(p => p.price)) : 0;
+    setPriceRange({ min: Math.floor(minProductPrice), max: Math.ceil(maxProductPrice * 1.1) });
     setSelectedRating(null);
     setSortBy('relevance');
     dispatch(setSelectedCategory(null));
+    console.log('Filters cleared, price range:', { min: Math.floor(minProductPrice), max: Math.ceil(maxProductPrice * 1.1) });
   };
 
-  const maxPrice = Math.max(...products.map(p => p.price), 5000);
+  const maxPrice = products.length > 0 ? Math.max(...products.map(p => p.price), 100000) : 100000;
 
   return (
     <div className="bg-gray-50 min-h-screen">
-      <div className="container mx-auto px-4 py-6">
+      <div className="container mx-auto px-2 sm:px-4 lg:px-6 py-6 max-w-[98%] xl:max-w-[95%]">
         {/* Header */}
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-gray-900 mb-4">All Products</h1>
@@ -164,10 +204,19 @@ const ProductsEnhanced: React.FC = () => {
               </select>
               <button
                 onClick={() => setShowFilters(!showFilters)}
-                className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 transition"
+                className={`flex items-center gap-2 px-4 py-2 border rounded-lg transition ${
+                  selectedCategory || selectedRating !== null || priceRange.min > 0 || priceRange.max < maxPrice
+                    ? 'border-primary-600 bg-primary-50 text-primary-700'
+                    : 'border-gray-300 hover:bg-gray-100'
+                }`}
               >
                 <FunnelIcon className="w-5 h-5" />
                 Filters
+                {(selectedCategory || selectedRating !== null || priceRange.min > 0 || priceRange.max < maxPrice) && (
+                  <span className="ml-1 bg-primary-600 text-white text-xs rounded-full px-2 py-0.5">
+                    Active
+                  </span>
+                )}
               </button>
             </div>
           </div>
@@ -180,6 +229,7 @@ const ProductsEnhanced: React.FC = () => {
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-lg font-semibold text-gray-900">Filters</h2>
                   <button
+                    type="button"
                     onClick={clearFilters}
                     className="text-sm text-primary-600 hover:text-primary-700"
                   >
@@ -192,11 +242,13 @@ const ProductsEnhanced: React.FC = () => {
                   <h3 className="font-semibold text-gray-900 mb-3">Category</h3>
                   <div className="space-y-2">
                     <button
+                      type="button"
                       onClick={() => {
+                        console.log('All Categories clicked');
                         setSelectedCategoryLocal(null);
                         dispatch(setSelectedCategory(null));
                       }}
-                      className={`w-full text-left px-3 py-2 rounded-md text-sm ${
+                      className={`w-full text-left px-3 py-2 rounded-md text-sm transition ${
                         selectedCategory === null
                           ? 'bg-primary-100 text-primary-700 font-medium'
                           : 'text-gray-700 hover:bg-gray-100'
@@ -207,11 +259,13 @@ const ProductsEnhanced: React.FC = () => {
                     {categories.map((category) => (
                       <button
                         key={category}
+                        type="button"
                         onClick={() => {
+                          console.log('Category filter clicked:', category);
                           setSelectedCategoryLocal(category);
                           dispatch(setSelectedCategory(category));
                         }}
-                        className={`w-full text-left px-3 py-2 rounded-md text-sm ${
+                        className={`w-full text-left px-3 py-2 rounded-md text-sm transition ${
                           selectedCategory === category
                             ? 'bg-primary-100 text-primary-700 font-medium'
                             : 'text-gray-700 hover:bg-gray-100'
@@ -231,20 +285,28 @@ const ProductsEnhanced: React.FC = () => {
                       <input
                         type="number"
                         value={priceRange.min}
-                        onChange={(e) => setPriceRange({ ...priceRange, min: Number(e.target.value) })}
+                        onChange={(e) => {
+                          const newMin = Number(e.target.value) || 0;
+                          console.log('Price min changed:', newMin);
+                          setPriceRange({ ...priceRange, min: newMin });
+                        }}
                         placeholder="Min"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                       />
                       <input
                         type="number"
                         value={priceRange.max}
-                        onChange={(e) => setPriceRange({ ...priceRange, max: Number(e.target.value) })}
+                        onChange={(e) => {
+                          const newMax = Number(e.target.value) || priceRange.max;
+                          console.log('Price max changed:', newMax);
+                          setPriceRange({ ...priceRange, max: newMax });
+                        }}
                         placeholder="Max"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                       />
                     </div>
                     <div className="text-xs text-gray-500">
-                      Range: ${priceRange.min} - ${priceRange.max}
+                      Range: ₹{priceRange.min.toLocaleString('en-IN')} - ₹{priceRange.max.toLocaleString('en-IN')}
                     </div>
                   </div>
                 </div>
@@ -256,8 +318,13 @@ const ProductsEnhanced: React.FC = () => {
                     {[4, 3, 2, 1].map((rating) => (
                       <button
                         key={rating}
-                        onClick={() => setSelectedRating(selectedRating === rating ? null : rating)}
-                        className={`w-full text-left px-3 py-2 rounded-md text-sm flex items-center gap-2 ${
+                        type="button"
+                        onClick={() => {
+                          const newRating = selectedRating === rating ? null : rating;
+                          console.log('Rating filter clicked:', newRating);
+                          setSelectedRating(newRating);
+                        }}
+                        className={`w-full text-left px-3 py-2 rounded-md text-sm flex items-center gap-2 transition ${
                           selectedRating === rating
                             ? 'bg-primary-100 text-primary-700 font-medium'
                             : 'text-gray-700 hover:bg-gray-100'
@@ -288,6 +355,7 @@ const ProductsEnhanced: React.FC = () => {
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-lg font-semibold">Filters</h2>
                   <button
+                    type="button"
                     onClick={() => setShowFilters(false)}
                     className="p-2 hover:bg-gray-100 rounded-full"
                   >
@@ -299,11 +367,13 @@ const ProductsEnhanced: React.FC = () => {
                   <h3 className="font-semibold text-gray-900 mb-3">Category</h3>
                   <div className="space-y-2">
                     <button
+                      type="button"
                       onClick={() => {
+                        console.log('All Categories clicked (mobile)');
                         setSelectedCategoryLocal(null);
                         dispatch(setSelectedCategory(null));
                       }}
-                      className={`w-full text-left px-3 py-2 rounded-md text-sm ${
+                      className={`w-full text-left px-3 py-2 rounded-md text-sm transition ${
                         selectedCategory === null
                           ? 'bg-primary-100 text-primary-700 font-medium'
                           : 'text-gray-700 hover:bg-gray-100'
@@ -314,11 +384,13 @@ const ProductsEnhanced: React.FC = () => {
                     {categories.map((category) => (
                       <button
                         key={category}
+                        type="button"
                         onClick={() => {
+                          console.log('Category filter clicked (mobile):', category);
                           setSelectedCategoryLocal(category);
                           dispatch(setSelectedCategory(category));
                         }}
-                        className={`w-full text-left px-3 py-2 rounded-md text-sm ${
+                        className={`w-full text-left px-3 py-2 rounded-md text-sm transition ${
                           selectedCategory === category
                             ? 'bg-primary-100 text-primary-700 font-medium'
                             : 'text-gray-700 hover:bg-gray-100'
@@ -337,17 +409,28 @@ const ProductsEnhanced: React.FC = () => {
                       <input
                         type="number"
                         value={priceRange.min}
-                        onChange={(e) => setPriceRange({ ...priceRange, min: Number(e.target.value) })}
+                        onChange={(e) => {
+                          const newMin = Number(e.target.value) || 0;
+                          console.log('Price min changed (mobile):', newMin);
+                          setPriceRange({ ...priceRange, min: newMin });
+                        }}
                         placeholder="Min"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                       />
                       <input
                         type="number"
                         value={priceRange.max}
-                        onChange={(e) => setPriceRange({ ...priceRange, max: Number(e.target.value) })}
+                        onChange={(e) => {
+                          const newMax = Number(e.target.value) || priceRange.max;
+                          console.log('Price max changed (mobile):', newMax);
+                          setPriceRange({ ...priceRange, max: newMax });
+                        }}
                         placeholder="Max"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                       />
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      Range: ₹{priceRange.min.toLocaleString('en-IN')} - ₹{priceRange.max.toLocaleString('en-IN')}
                     </div>
                   </div>
                 </div>
@@ -358,8 +441,13 @@ const ProductsEnhanced: React.FC = () => {
                     {[4, 3, 2, 1].map((rating) => (
                       <button
                         key={rating}
-                        onClick={() => setSelectedRating(selectedRating === rating ? null : rating)}
-                        className={`w-full text-left px-3 py-2 rounded-md text-sm flex items-center gap-2 ${
+                        type="button"
+                        onClick={() => {
+                          const newRating = selectedRating === rating ? null : rating;
+                          console.log('Rating filter clicked (mobile):', newRating);
+                          setSelectedRating(newRating);
+                        }}
+                        className={`w-full text-left px-3 py-2 rounded-md text-sm flex items-center gap-2 transition ${
                           selectedRating === rating
                             ? 'bg-primary-100 text-primary-700 font-medium'
                             : 'text-gray-700 hover:bg-gray-100'
@@ -380,12 +468,22 @@ const ProductsEnhanced: React.FC = () => {
                     ))}
                   </div>
                 </div>
-                <button
-                  onClick={clearFilters}
-                  className="w-full bg-primary-600 text-white py-2 rounded-md font-medium"
-                >
-                  Apply Filters
-                </button>
+                <div className="flex gap-2 mt-4">
+                  <button
+                    type="button"
+                    onClick={clearFilters}
+                    className="flex-1 bg-gray-200 text-gray-700 py-2 rounded-md font-medium hover:bg-gray-300 transition"
+                  >
+                    Clear All
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowFilters(false)}
+                    className="flex-1 bg-primary-600 text-white py-2 rounded-md font-medium hover:bg-primary-700 transition"
+                  >
+                    Apply Filters
+                  </button>
+                </div>
               </div>
             </div>
           )}

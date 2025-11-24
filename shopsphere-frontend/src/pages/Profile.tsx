@@ -51,7 +51,7 @@ const Profile: React.FC = () => {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-2 sm:px-4 lg:px-6 py-8 max-w-[98%] xl:max-w-[95%]">
       <h1 className="text-3xl font-bold mb-8">My Profile</h1>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -156,6 +156,8 @@ const Profile: React.FC = () => {
 };
 
 export default Profile;
+
+
 
 
 

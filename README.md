@@ -164,8 +164,21 @@ Example: When a customer views a phone, the system automatically recommends:
 #### Cart
 - `GET /api/cart/{userId}` - Get user's cart
 - `POST /api/cart/{userId}/add` - Add item to cart
+- `PUT /api/cart/{userId}/update` - Update cart item quantity
 - `DELETE /api/cart/{userId}/remove/{productId}` - Remove item from cart
 - `GET /api/cart/{userId}/recommendations` - Get cart-based recommendations
+
+#### Reviews
+- `GET /api/reviews/product/{productId}` - Get all reviews for a product
+- `POST /api/reviews` - Create a review (requires authentication)
+- `PUT /api/reviews/{reviewId}` - Update a review
+- `DELETE /api/reviews/{reviewId}` - Delete a review
+- `GET /api/reviews/can-review/{productId}` - Check if user can review a product
+
+#### Orders
+- `GET /api/orders/my-orders` - Get user's orders (JWT-based)
+- `GET /api/orders/user/{userId}` - Get orders by user ID
+- `POST /api/orders` - Create a new order
 
 ## 🔧 Configuration
 
@@ -197,9 +210,11 @@ API URL is configured in Redux slices. Update `API_URL` in:
 - **products**: Product catalog (67 products with updated images)
 - **product_associations**: Product recommendation relationships
 - **cart**: Shopping cart items
-- **orders**: Order history
+- **orders**: Order history with status tracking
 - **order_items**: Order line items
+- **order_status_history**: Order status change history
 - **wishlist**: User wishlist items
+- **reviews**: Product reviews and ratings
 
 ## 📋 Recent Updates
 
@@ -208,24 +223,109 @@ API URL is configured in Redux slices. Update `API_URL` in:
 - ✅ Removed products without updated images (60 products removed)
 - ✅ Each product now has 5 different images on detail pages
 - ✅ Product tiles display updated images on homepage and product listing pages
+- ✅ Updated product prices based on categories:
+  - Phones: ₹50,000 - ₹60,000
+  - Laptops: ₹70,000 - ₹80,000
+  - Other Electronics: ₹2,000 - ₹5,000
+  - Clothing: ₹1,000 - ₹3,000
+  - Home & Kitchen: ₹10,000 - ₹30,000
+  - Accessories: ₹2,000 - ₹70,000
+  - Beauty: ₹2,000 - ₹4,000
+  - Sports: ₹1,000 - ₹4,000
 
-### Search Functionality
+### Search & Filter Functionality
 - ✅ Implemented full-text search across product names, descriptions, and categories
 - ✅ Added search result count and query display
 - ✅ Added clear search button and error handling
 - ✅ Search results update in real-time with loading states
+- ✅ **Fixed filter functionality** - Category, price range, and rating filters now work correctly
+- ✅ Filters apply immediately with real-time product updates
+- ✅ Responsive filter design for mobile and desktop
+
+### Review & Rating System
+- ✅ **Complete review system implementation**:
+  - Users can write reviews for products they've purchased
+  - Reviews display with ratings, comments, dates, and verified purchase badges
+  - Review seeder generates realistic reviews for all products
+  - Product ratings automatically update based on reviews
+  - User-specific review management
+- ✅ Review eligibility: Only users who have ordered a product can review it
+- ✅ Verified purchase badges for authentic reviews
+- ✅ Dynamic review count display
+
+### Order Management & Tracking
+- ✅ **Advanced order status tracking system**:
+  - Real-time order status progression: PENDING → CONFIRMED → PICKED_UP → IN_TRANSIT → OUT_FOR_DELIVERY → DELIVERED
+  - Automatic status updates every 5 minutes
+  - Visual timeline with dates and times for each status
+  - Status history tracking
+  - Amazon/Flipkart-style order tracking interface
+- ✅ Order status timeline shows:
+  - Order Placed (with timestamp)
+  - Order Confirmed (1 hour after order)
+  - Picked Up from Seller (6 hours after order)
+  - In Transit (12 hours after order)
+  - Out for Delivery (24 hours after order)
+  - Delivered (30 hours after order)
+
+### Cart & Checkout Enhancements
+- ✅ **Quantity editing on cart and checkout pages**:
+  - Increment/decrement buttons for quantity
+  - Direct quantity input field
+  - Real-time cart updates
+- ✅ Fixed quantity increment bug (was adding instead of setting)
+- ✅ **Payment gateway integration**:
+  - Redirect to payment page for card/PayPal payments
+  - Simulated payment gateway with card details form
+  - Cash on Delivery option for direct order placement
+  - Order placement after successful payment
+
+### Delivery & Location Services
+- ✅ **Pincode serviceability check**:
+  - 6-digit pincode validation
+  - Real-time serviceability checking
+  - Delivery date estimation
+  - Delivery charge calculation
+  - Serviceable/Not serviceable status display
 
 ### UI/UX Improvements
 - ✅ Changed currency from USD ($) to INR (₹)
 - ✅ Implemented dynamic discounts (5% to 50% range)
 - ✅ Enhanced product detail pages with Flipkart-style design
 - ✅ Improved product recommendation logic for better relevance
+- ✅ **Expanded website width** - Reduced left/right margins for better space utilization
+- ✅ Responsive padding adjustments across all pages
+- ✅ Removed duplicate "Browse Products" button from homepage
+- ✅ Enhanced footer with social media links and creator credits
+
+### Contact & Social Media
+- ✅ **Contact Us page** with:
+  - Contact form for customer inquiries
+  - Project creator information (Diksha & Kapil Pujari)
+  - Business hours display
+  - Email links for direct contact
+- ✅ **Social media placeholder pages**:
+  - Professional "Coming Soon" pages for Facebook, Twitter, and Instagram
+  - Platform-specific branding and messaging
+  - Navigation back to main site
 
 ### Backend Enhancements
 - ✅ Enhanced search query to search across multiple fields
 - ✅ Improved product recommendation algorithm
 - ✅ Added proper error handling for all endpoints
 - ✅ Optimized database queries for better performance
+- ✅ **Review system backend**:
+  - Review model, repository, service, and controller
+  - Review seeder for generating realistic reviews
+  - Status history tracking for orders
+  - Automatic order status progression service
+
+### API Endpoints (New)
+- `GET /api/reviews/product/{productId}` - Get all reviews for a product
+- `POST /api/reviews` - Create a review (requires authentication)
+- `GET /api/reviews/can-review/{productId}` - Check if user can review
+- `PUT /api/cart/{userId}/update` - Update cart item quantity
+- `GET /api/orders/my-orders` - Get user's orders (JWT-based)
 
 ## 🧪 Testing
 

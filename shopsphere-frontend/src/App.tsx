@@ -10,9 +10,12 @@ import Cart from './pages/Cart';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Checkout from './pages/Checkout';
+import Payment from './pages/Payment';
 import Profile from './pages/Profile';
 import Orders from './pages/Orders';
 import Wishlist from './pages/Wishlist';
+import Contact from './pages/Contact';
+import SocialMedia from './pages/SocialMedia';
 
 function App() {
   return (
@@ -28,9 +31,12 @@ function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/checkout" element={<Checkout />} />
+            <Route path="/payment" element={<Payment />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/orders" element={<Orders />} />
             <Route path="/wishlist" element={<Wishlist />} />
+            <Route path="/contact" element={<Contact />} />
+            <Route path="/social/:platform" element={<SocialMedia />} />
           </Routes>
         </main>
         <Footer />

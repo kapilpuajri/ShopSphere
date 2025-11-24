@@ -21,25 +21,19 @@ const Home: React.FC = () => {
       {/* Hero Section */}
       <section className="relative bg-gradient-to-r from-primary-600 via-primary-700 to-primary-800 text-white py-24 overflow-hidden">
         <div className="absolute inset-0 bg-black opacity-10"></div>
-        <div className="container mx-auto px-4 text-center relative z-10">
+        <div className="container mx-auto px-2 sm:px-4 lg:px-6 text-center relative z-10 max-w-[98%] xl:max-w-[95%]">
           <h1 className="text-5xl md:text-6xl font-bold mb-6 animate-fade-in">
             Welcome to ShopSphere
           </h1>
           <p className="text-xl md:text-2xl mb-8 text-primary-100">
             Discover amazing products at unbeatable prices
           </p>
-          <div className="flex justify-center gap-4">
+          <div className="flex justify-center">
             <a
               href="/products"
               className="bg-white text-primary-600 px-8 py-4 rounded-lg font-semibold hover:bg-gray-100 transition transform hover:scale-105 shadow-lg"
             >
               Shop Now
-            </a>
-            <a
-              href="/products"
-              className="bg-transparent border-2 border-white text-white px-8 py-4 rounded-lg font-semibold hover:bg-white hover:text-primary-600 transition transform hover:scale-105"
-            >
-              Browse Products
             </a>
           </div>
         </div>
@@ -51,7 +45,7 @@ const Home: React.FC = () => {
       </section>
 
       {/* Featured Products */}
-      <div className="container mx-auto px-4 py-12">
+      <div className="container mx-auto px-2 sm:px-4 lg:px-6 py-12 max-w-[98%] xl:max-w-[95%]">
         {loading ? (
           <div className="text-center py-12">Loading products...</div>
         ) : (

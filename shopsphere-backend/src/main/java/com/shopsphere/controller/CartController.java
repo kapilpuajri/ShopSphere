@@ -57,6 +57,22 @@ public class CartController {
         return ResponseEntity.ok(cartRepository.save(cart));
     }
     
+    @PutMapping("/{userId}/update")
+    public ResponseEntity<?> updateCartQuantity(@PathVariable Long userId,
+                                                @RequestParam Long productId,
+                                                @RequestParam Integer quantity) {
+        Cart cart = cartRepository.findByUserIdAndProductId(userId, productId)
+            .orElseThrow(() -> new RuntimeException("Cart item not found"));
+        
+        if (quantity <= 0) {
+            cartRepository.delete(cart);
+            return ResponseEntity.ok().build();
+        }
+        
+        cart.setQuantity(quantity);
+        return ResponseEntity.ok(cartRepository.save(cart));
+    }
+    
     @DeleteMapping("/{userId}/remove/{productId}")
     public ResponseEntity<Void> removeFromCart(@PathVariable Long userId, 
                                               @PathVariable Long productId) {

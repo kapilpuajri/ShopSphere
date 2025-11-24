@@ -1,9 +1,10 @@
 import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../hooks/redux';
-import { fetchCart, removeFromCart } from '../store/slices/cartSlice';
+import { fetchCart, removeFromCart, updateCartQuantity } from '../store/slices/cartSlice';
 import ProductList from '../components/product/ProductList';
 import { formatPrice } from '../utils/currency';
+import { toast } from 'react-hot-toast';
 
 const Cart: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -24,8 +25,49 @@ const Cart: React.FC = () => {
     dispatch(removeFromCart({ userId, productId }));
   };
 
+  const handleQuantityChange = async (productId: number, newQuantity: number) => {
+    console.log('handleQuantityChange called:', { productId, newQuantity, userId });
+    if (newQuantity < 1) {
+      // Remove item if quantity is 0 or less
+      dispatch(removeFromCart({ userId, productId }));
+      toast.success('Item removed from cart');
+    } else {
+      try {
+        console.log('Dispatching updateCartQuantity:', { userId, productId, quantity: newQuantity });
+        // Update quantity using the update endpoint
+        const result = await dispatch(updateCartQuantity({ userId, productId, quantity: newQuantity }));
+        console.log('Update result:', result);
+        if (updateCartQuantity.rejected.match(result)) {
+          console.error('Update rejected:', result.error);
+          // If update fails, refetch cart to get current state
+          dispatch(fetchCart(userId));
+          toast.error('Failed to update quantity. Please try again.');
+        } else {
+          console.log('Update successful, new quantity:', result.payload);
+        }
+      } catch (error) {
+        console.error('Error updating quantity:', error);
+        // Fallback: refetch cart to get current state
+        dispatch(fetchCart(userId));
+        toast.error('Failed to update quantity. Please try again.');
+      }
+    }
+  };
+
+  const handleIncrement = (e: React.MouseEvent, productId: number, currentQuantity: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    handleQuantityChange(productId, currentQuantity + 1);
+  };
+
+  const handleDecrement = (e: React.MouseEvent, productId: number, currentQuantity: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    handleQuantityChange(productId, currentQuantity - 1);
+  };
+
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-2 sm:px-4 lg:px-6 py-8 max-w-[98%] xl:max-w-[95%]">
       <h1 className="text-4xl font-bold text-gray-800 mb-8">Shopping Cart</h1>
 
       {items.length === 0 ? (
@@ -39,7 +81,7 @@ const Cart: React.FC = () => {
               {items.map((item) => (
                 <div
                   key={item.id}
-                  className="bg-white rounded-lg shadow-md p-6 mb-4 flex items-center gap-4"
+                  className="bg-white rounded-lg shadow-md p-6 mb-4 flex flex-col sm:flex-row items-start sm:items-center gap-4"
                 >
                   <img
                     src={item.product.imageUrl || 'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=100&h=100&fit=crop'}
@@ -49,16 +91,51 @@ const Cart: React.FC = () => {
                       (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=100&h=100&fit=crop';
                     }}
                   />
-                  <div className="flex-1">
-                    <h3 className="text-lg font-semibold">{item.product.name}</h3>
-                    <p className="text-primary-600 font-bold">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-lg font-semibold mb-1">{item.product.name}</h3>
+                    <p className="text-primary-600 font-bold mb-3">
                       {formatPrice(item.product.price)}
                     </p>
-                    <p className="text-gray-600">Quantity: {item.quantity}</p>
+                    <div className="flex items-center gap-4">
+                      <label className="text-sm text-gray-600 font-medium">Quantity:</label>
+                      <div className="flex items-center border border-gray-300 rounded-lg">
+                        <button
+                          type="button"
+                          onClick={(e) => handleDecrement(e, item.product.id, item.quantity)}
+                          className="px-3 py-1 text-gray-600 hover:bg-gray-100 rounded-l-lg transition"
+                          aria-label="Decrease quantity"
+                        >
+                          −
+                        </button>
+                        <input
+                          type="number"
+                          min="1"
+                          value={item.quantity}
+                          onChange={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            const newQuantity = parseInt(e.target.value) || 1;
+                            handleQuantityChange(item.product.id, newQuantity);
+                          }}
+                          className="w-16 text-center border-0 focus:ring-2 focus:ring-primary-500 focus:outline-none py-1"
+                        />
+                        <button
+                          type="button"
+                          onClick={(e) => handleIncrement(e, item.product.id, item.quantity)}
+                          className="px-3 py-1 text-gray-600 hover:bg-gray-100 rounded-r-lg transition"
+                          aria-label="Increase quantity"
+                        >
+                          +
+                        </button>
+                      </div>
+                      <span className="text-sm text-gray-600">
+                        Total: <span className="font-semibold text-gray-800">{formatPrice(item.product.price * item.quantity)}</span>
+                      </span>
+                    </div>
                   </div>
                   <button
                     onClick={() => handleRemove(item.product.id)}
-                    className="text-red-600 hover:text-red-800"
+                    className="text-red-600 hover:text-red-800 font-medium px-4 py-2 border border-red-600 rounded-lg hover:bg-red-50 transition self-start sm:self-center"
                   >
                     Remove
                   </button>

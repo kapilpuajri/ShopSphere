@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppSelector, useAppDispatch } from '../hooks/redux';
-import { clearCart } from '../store/slices/cartSlice';
+import { clearCart, updateCartQuantity, removeFromCart, fetchCart } from '../store/slices/cartSlice';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
 import { formatPrice } from '../utils/currency';
@@ -11,6 +11,7 @@ const Checkout: React.FC = () => {
   const { user, isAuthenticated } = useAppSelector(state => state.auth);
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
+  const userId = user?.id || 1;
 
   const [formData, setFormData] = useState({
     shippingAddress: '',
@@ -65,7 +66,7 @@ const Checkout: React.FC = () => {
 
   if (items.length === 0) {
     return (
-      <div className="container mx-auto px-4 py-12 text-center">
+      <div className="container mx-auto px-2 sm:px-4 lg:px-6 py-12 text-center max-w-[98%] xl:max-w-[95%]">
         <h2 className="text-2xl font-bold mb-4">Your cart is empty</h2>
         <button
           onClick={() => navigate('/products')}
@@ -81,88 +82,102 @@ const Checkout: React.FC = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  const handleQuantityChange = async (productId: number, newQuantity: number) => {
+    if (newQuantity < 1) {
+      // Remove item if quantity is 0 or less
+      dispatch(removeFromCart({ userId, productId }));
+      toast.success('Item removed from cart');
+    } else {
+      try {
+        // Update quantity using the update endpoint
+        const result = await dispatch(updateCartQuantity({ userId, productId, quantity: newQuantity }));
+        if (updateCartQuantity.rejected.match(result)) {
+          // If update fails, refetch cart to get current state
+          dispatch(fetchCart(userId));
+          toast.error('Failed to update quantity. Please try again.');
+        }
+      } catch (error) {
+        console.error('Error updating quantity:', error);
+        // Fallback: refetch cart to get current state
+        dispatch(fetchCart(userId));
+        toast.error('Failed to update quantity. Please try again.');
+      }
+    }
+  };
+
+  const handleIncrement = (e: React.MouseEvent, productId: number, currentQuantity: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    handleQuantityChange(productId, currentQuantity + 1);
+  };
+
+  const handleDecrement = (e: React.MouseEvent, productId: number, currentQuantity: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    handleQuantityChange(productId, currentQuantity - 1);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    try {
-      const orderData = {
-        userId: user?.id,
-        items: items.map(item => ({
-          productId: item.product.id,
-          quantity: item.quantity,
-          price: item.product.price,
-        })),
-        totalAmount: total,
-        shippingAddress: `${formData.shippingAddress}, ${formData.city}, ${formData.zipCode}, ${formData.country}`,
-        paymentMethod: formData.paymentMethod,
-        phone: formData.phone,
-        city: formData.city,
-        zipCode: formData.zipCode,
-        country: formData.country,
-      };
+    const orderData = {
+      userId: user?.id,
+      items: items.map(item => ({
+        productId: item.product.id,
+        quantity: item.quantity,
+        price: item.product.price,
+      })),
+      totalAmount: total,
+      shippingAddress: `${formData.shippingAddress}, ${formData.city}, ${formData.zipCode}, ${formData.country}`,
+      paymentMethod: formData.paymentMethod,
+      phone: formData.phone,
+      city: formData.city,
+      zipCode: formData.zipCode,
+      country: formData.country,
+    };
 
-      console.log('=== Placing Order ===');
-      console.log('User ID from Redux:', user?.id);
-      console.log('User ID type:', typeof user?.id);
-      console.log('Order data:', orderData);
-      console.log('Order data userId:', orderData.userId);
-      console.log('Order data userId type:', typeof orderData.userId);
-      
-      const response = await axios.post('http://localhost:8080/api/orders', orderData, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
+    // For Cash on Delivery, place order directly
+    if (formData.paymentMethod === 'cod') {
+      try {
+        const response = await axios.post('http://localhost:8080/api/orders', orderData, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('token')}`,
+          },
+        });
+
+        if (response.status === 200 && response.data) {
+          dispatch(clearCart());
+          toast.success('Order placed successfully!');
+          setTimeout(() => {
+            navigate('/orders');
+          }, 1500);
+        } else {
+          throw new Error('Order creation failed');
+        }
+      } catch (error: any) {
+        console.error('Order placement error:', error);
+        const errorMessage = error.response?.data?.error || 
+                            error.response?.data?.message || 
+                            error.message || 
+                            'Failed to place order. Please try again.';
+        toast.error(errorMessage);
+      }
+    } else {
+      // For Card/UPI/PayPal, redirect to payment gateway
+      navigate('/payment', {
+        state: {
+          paymentData: {
+            orderData,
+            totalAmount: total,
+            paymentMethod: formData.paymentMethod,
+          },
         },
       });
-
-      console.log('Order response status:', response.status);
-      console.log('Order response data:', response.data);
-      if (response.data && response.data.user) {
-        console.log('Order user ID from response:', response.data.user.id);
-      }
-      
-      // If we get a 200 status, the order was created successfully
-      // The backend returns the Order object directly with fields like id, totalAmount, etc.
-      if (response.status === 200 && response.data) {
-        // Verify we have a valid order response (should have totalAmount or id)
-        const hasValidOrderData = response.data.totalAmount !== undefined || 
-                                  response.data.id !== undefined ||
-                                  response.data.status !== undefined;
-        
-        if (hasValidOrderData) {
-          dispatch(clearCart());
-          toast.success('Order placed successfully!');
-          console.log('Order created successfully, redirecting to orders page...');
-          console.log('Order ID:', response.data.id);
-          console.log('Order user ID:', response.data.user?.id);
-          // Increased delay to ensure order is fully committed to database
-          setTimeout(() => {
-            console.log('Navigating to orders page, user ID:', user?.id);
-            navigate('/orders');
-          }, 2000); // Increased to 2 seconds to ensure database commit
-        } else {
-          // Even if format is unexpected, if status is 200, order was likely created
-          console.warn('Unexpected response format, but status is 200. Proceeding...', response.data);
-          dispatch(clearCart());
-          toast.success('Order placed successfully!');
-          setTimeout(() => {
-            navigate('/orders');
-          }, 2000); // Increased to 2 seconds
-        }
-      } else {
-        throw new Error('Order creation failed - invalid response');
-      }
-    } catch (error: any) {
-      console.error('Order placement error:', error);
-      const errorMessage = error.response?.data?.error || 
-                          error.response?.data?.message || 
-                          error.message || 
-                          'Failed to place order. Please try again.';
-      toast.error(errorMessage);
     }
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-2 sm:px-4 lg:px-6 py-8 max-w-[98%] xl:max-w-[95%]">
       <h1 className="text-3xl font-bold mb-8">Checkout</h1>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -259,11 +274,56 @@ const Checkout: React.FC = () => {
         <div className="lg:col-span-1">
           <div className="bg-white p-6 rounded-lg shadow-md sticky top-24">
             <h2 className="text-xl font-semibold mb-4">Order Summary</h2>
-            <div className="space-y-2 mb-4">
+            <div className="space-y-4 mb-4">
               {items.map((item) => (
-                <div key={item.id} className="flex justify-between text-sm">
-                  <span>{item.product.name} x{item.quantity}</span>
-                  <span>{formatPrice(item.product.price * item.quantity)}</span>
+                <div key={item.id} className="border-b pb-4 last:border-b-0">
+                  <div className="flex items-start gap-3 mb-2">
+                    <img
+                      src={item.product.imageUrl || 'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=100&h=100&fit=crop'}
+                      alt={item.product.name}
+                      className="w-16 h-16 object-cover rounded"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=100&h=100&fit=crop';
+                      }}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-sm font-semibold text-gray-800 truncate">{item.product.name}</h3>
+                      <p className="text-sm text-gray-600">{formatPrice(item.product.price)}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between mt-2">
+                    <div className="flex items-center border border-gray-300 rounded-lg">
+                      <button
+                        type="button"
+                        onClick={(e) => handleDecrement(e, item.product.id, item.quantity)}
+                        className="px-3 py-1 text-gray-600 hover:bg-gray-100 rounded-l-lg transition"
+                        aria-label="Decrease quantity"
+                      >
+                        −
+                      </button>
+                      <input
+                        type="number"
+                        min="1"
+                        value={item.quantity}
+                        onChange={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          const newQuantity = parseInt(e.target.value) || 1;
+                          handleQuantityChange(item.product.id, newQuantity);
+                        }}
+                        className="w-12 text-center border-0 focus:ring-0 focus:outline-none py-1"
+                      />
+                      <button
+                        type="button"
+                        onClick={(e) => handleIncrement(e, item.product.id, item.quantity)}
+                        className="px-3 py-1 text-gray-600 hover:bg-gray-100 rounded-r-lg transition"
+                        aria-label="Increase quantity"
+                      >
+                        +
+                      </button>
+                    </div>
+                    <span className="text-sm font-semibold">{formatPrice(item.product.price * item.quantity)}</span>
+                  </div>
                 </div>
               ))}
             </div>

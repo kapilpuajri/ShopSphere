@@ -50,7 +50,7 @@ public class OrderService {
             order.setTotalAmount(new BigDecimal(orderData.get("totalAmount").toString()));
             order.setShippingAddress(orderData.get("shippingAddress").toString());
             order.setPaymentMethod(orderData.get("paymentMethod").toString());
-            order.setStatus(Order.OrderStatus.PENDING);
+            order.updateStatus(Order.OrderStatus.PENDING);
             
             List<OrderItem> orderItems = new ArrayList<>();
             @SuppressWarnings("unchecked")

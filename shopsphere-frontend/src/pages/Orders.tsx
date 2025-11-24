@@ -10,6 +10,12 @@ interface Order {
   totalAmount: number;
   status: string;
   createdAt: string;
+  pendingDate?: string;
+  confirmedDate?: string;
+  pickedUpDate?: string;
+  inTransitDate?: string;
+  outForDeliveryDate?: string;
+  deliveredDate?: string;
   orderItems: Array<{
     product: {
       id: number;
@@ -127,7 +133,7 @@ const Orders: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="container mx-auto px-4 py-12 text-center">
+      <div className="container mx-auto px-2 sm:px-4 lg:px-6 py-12 text-center max-w-[98%] xl:max-w-[95%]">
         <p>Loading orders...</p>
       </div>
     );
@@ -141,7 +147,7 @@ const Orders: React.FC = () => {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-2 sm:px-4 lg:px-6 py-8 max-w-[98%] xl:max-w-[95%]">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold">My Orders</h1>
         <button
@@ -171,19 +177,190 @@ const Orders: React.FC = () => {
                 <div>
                   <h3 className="text-lg font-semibold">Order #{order.id}</h3>
                   <p className="text-sm text-gray-600">
-                    Placed on {new Date(order.createdAt).toLocaleDateString()}
+                    Placed on {new Date(order.createdAt).toLocaleDateString('en-IN', {
+                      day: 'numeric',
+                      month: 'short',
+                      year: 'numeric'
+                    })}
                   </p>
                 </div>
                 <div className="text-right">
                   <p className="text-lg font-bold">{formatPrice(order.totalAmount)}</p>
-                  <span className={`inline-block px-3 py-1 rounded-full text-sm ${
+                  <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
                     order.status === 'DELIVERED' ? 'bg-green-100 text-green-800' :
-                    order.status === 'SHIPPED' ? 'bg-blue-100 text-blue-800' :
-                    order.status === 'PROCESSING' ? 'bg-yellow-100 text-yellow-800' :
+                    order.status === 'OUT_FOR_DELIVERY' ? 'bg-blue-100 text-blue-800' :
+                    order.status === 'IN_TRANSIT' ? 'bg-purple-100 text-purple-800' :
+                    order.status === 'PICKED_UP' ? 'bg-orange-100 text-orange-800' :
+                    order.status === 'CONFIRMED' ? 'bg-yellow-100 text-yellow-800' :
                     'bg-gray-100 text-gray-800'
                   }`}>
-                    {order.status}
+                    {order.status.replace(/_/g, ' ')}
                   </span>
+                </div>
+              </div>
+
+              {/* Order Status Timeline */}
+              <div className="mb-4 p-4 bg-gray-50 rounded-lg">
+                <h4 className="font-semibold text-gray-900 mb-3">Order Status</h4>
+                <div className="space-y-3">
+                  {/* Pending */}
+                  <div className="flex items-start gap-3">
+                    <div className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center ${
+                      order.status !== 'CANCELLED' ? 'bg-green-500' : 'bg-gray-300'
+                    }`}>
+                      <span className="text-white text-xs">✓</span>
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-medium text-gray-900">Order Placed</p>
+                      <p className="text-sm text-gray-600">
+                        {order.pendingDate 
+                          ? new Date(order.pendingDate).toLocaleString('en-IN', {
+                              day: 'numeric',
+                              month: 'short',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })
+                          : new Date(order.createdAt).toLocaleString('en-IN', {
+                              day: 'numeric',
+                              month: 'short',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Confirmed */}
+                  {order.status !== 'PENDING' && (
+                    <div className="flex items-start gap-3">
+                      <div className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center ${
+                        ['CONFIRMED', 'PICKED_UP', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'DELIVERED'].includes(order.status)
+                          ? 'bg-green-500' : 'bg-gray-300'
+                      }`}>
+                        <span className="text-white text-xs">✓</span>
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-medium text-gray-900">Order Confirmed</p>
+                        <p className="text-sm text-gray-600">
+                          {order.confirmedDate 
+                            ? new Date(order.confirmedDate).toLocaleString('en-IN', {
+                                day: 'numeric',
+                                month: 'short',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })
+                            : 'Pending'}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Picked Up */}
+                  {['PICKED_UP', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'DELIVERED'].includes(order.status) && (
+                    <div className="flex items-start gap-3">
+                      <div className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center ${
+                        ['PICKED_UP', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'DELIVERED'].includes(order.status)
+                          ? 'bg-green-500' : 'bg-gray-300'
+                      }`}>
+                        <span className="text-white text-xs">✓</span>
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-medium text-gray-900">Picked Up from Seller</p>
+                        <p className="text-sm text-gray-600">
+                          {order.pickedUpDate 
+                            ? new Date(order.pickedUpDate).toLocaleString('en-IN', {
+                                day: 'numeric',
+                                month: 'short',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })
+                            : 'Pending'}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* In Transit */}
+                  {['IN_TRANSIT', 'OUT_FOR_DELIVERY', 'DELIVERED'].includes(order.status) && (
+                    <div className="flex items-start gap-3">
+                      <div className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center ${
+                        ['IN_TRANSIT', 'OUT_FOR_DELIVERY', 'DELIVERED'].includes(order.status)
+                          ? 'bg-green-500' : 'bg-gray-300'
+                      }`}>
+                        <span className="text-white text-xs">✓</span>
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-medium text-gray-900">In Transit</p>
+                        <p className="text-sm text-gray-600">
+                          {order.inTransitDate 
+                            ? new Date(order.inTransitDate).toLocaleString('en-IN', {
+                                day: 'numeric',
+                                month: 'short',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })
+                            : 'Pending'}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Out for Delivery */}
+                  {['OUT_FOR_DELIVERY', 'DELIVERED'].includes(order.status) && (
+                    <div className="flex items-start gap-3">
+                      <div className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center ${
+                        order.status === 'DELIVERED' ? 'bg-green-500' : 'bg-blue-500'
+                      }`}>
+                        {order.status === 'OUT_FOR_DELIVERY' ? (
+                          <span className="text-white text-xs animate-pulse">●</span>
+                        ) : (
+                          <span className="text-white text-xs">✓</span>
+                        )}
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-medium text-gray-900">Out for Delivery</p>
+                        <p className="text-sm text-gray-600">
+                          {order.outForDeliveryDate 
+                            ? new Date(order.outForDeliveryDate).toLocaleString('en-IN', {
+                                day: 'numeric',
+                                month: 'short',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })
+                            : 'Pending'}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Delivered */}
+                  {order.status === 'DELIVERED' && (
+                    <div className="flex items-start gap-3">
+                      <div className="flex-shrink-0 w-6 h-6 rounded-full bg-green-500 flex items-center justify-center">
+                        <span className="text-white text-xs">✓</span>
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-medium text-green-700">Delivered</p>
+                        <p className="text-sm text-gray-600">
+                          {order.deliveredDate 
+                            ? new Date(order.deliveredDate).toLocaleString('en-IN', {
+                                day: 'numeric',
+                                month: 'short',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })
+                            : 'Pending'}
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 

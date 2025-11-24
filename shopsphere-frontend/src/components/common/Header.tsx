@@ -24,7 +24,7 @@ const Header: React.FC = () => {
 
   return (
     <header className="bg-white shadow-md sticky top-0 z-50">
-      <div className="container mx-auto px-4 py-4">
+      <div className="container mx-auto px-2 sm:px-4 lg:px-6 py-4 max-w-[98%] xl:max-w-[95%]">
         <div className="flex items-center justify-between">
           <Link to="/" className="text-2xl font-bold text-primary-600">
             ShopSphere

@@ -41,8 +41,12 @@ public class Order {
     
     @PrePersist
     protected void onCreate() {
-        createdAt = LocalDateTime.now();
-        updatedAt = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now();
+        createdAt = now;
+        updatedAt = now;
+        if (pendingDate == null) {
+            pendingDate = now;
+        }
     }
     
     @PreUpdate
@@ -50,8 +54,51 @@ public class Order {
         updatedAt = LocalDateTime.now();
     }
     
+    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @JsonIgnore
+    private List<OrderStatusHistory> statusHistory;
+    
+    // Status timestamps
+    private LocalDateTime pendingDate;
+    private LocalDateTime confirmedDate;
+    private LocalDateTime pickedUpDate;
+    private LocalDateTime inTransitDate;
+    private LocalDateTime outForDeliveryDate;
+    private LocalDateTime deliveredDate;
+    
     public enum OrderStatus {
-        PENDING, PROCESSING, SHIPPED, DELIVERED, CANCELLED
+        PENDING, CONFIRMED, PICKED_UP, IN_TRANSIT, OUT_FOR_DELIVERY, DELIVERED, CANCELLED
+    }
+    
+    // Helper method to update status and timestamp
+    public void updateStatus(OrderStatus newStatus) {
+        this.status = newStatus;
+        LocalDateTime now = LocalDateTime.now();
+        
+        switch (newStatus) {
+            case PENDING:
+                if (pendingDate == null) pendingDate = now;
+                break;
+            case CONFIRMED:
+                if (confirmedDate == null) confirmedDate = now;
+                break;
+            case PICKED_UP:
+                if (pickedUpDate == null) pickedUpDate = now;
+                break;
+            case IN_TRANSIT:
+                if (inTransitDate == null) inTransitDate = now;
+                break;
+            case OUT_FOR_DELIVERY:
+                if (outForDeliveryDate == null) outForDeliveryDate = now;
+                break;
+            case DELIVERED:
+                if (deliveredDate == null) deliveredDate = now;
+                break;
+            case CANCELLED:
+                // No timestamp needed for cancelled orders
+                break;
+        }
+        updatedAt = now;
     }
 }
 

@@ -5,6 +5,7 @@ import { fetchProductById, fetchRecommendations, fetchFrequentlyBoughtTogether, 
 import ProductList from './ProductList';
 import { addToCart } from '../../store/slices/cartSlice';
 import { addToWishlist, removeFromWishlist, checkWishlistStatus } from '../../store/slices/wishlistSlice';
+import { fetchReviewsByProduct, createReview, checkCanReview, clearReviews } from '../../store/slices/reviewSlice';
 import { toast } from 'react-hot-toast';
 import { 
   ShoppingCartIcon, 
@@ -14,7 +15,8 @@ import {
   ShieldCheckIcon,
   ArrowLeftIcon,
   BanknotesIcon,
-  ArrowPathIcon
+  ArrowPathIcon,
+  XMarkIcon
 } from '@heroicons/react/24/outline';
 import { HeartIcon as HeartIconSolid, StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 import ProductCard from './ProductCard';
@@ -27,11 +29,18 @@ const ProductDetailFlipkartStyle: React.FC = () => {
   const { currentProduct, recommendations, frequentlyBoughtTogether, products, loading, error } = useAppSelector(state => state.products);
   const { user, isAuthenticated } = useAppSelector(state => state.auth);
   const { wishlistStatus } = useAppSelector(state => state.wishlist);
+  const { reviews, loading: reviewsLoading, canReview, reviewReason } = useAppSelector(state => state.reviews);
   const userId = user?.id || 1;
   const [imageError, setImageError] = useState(false);
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [activeTab, setActiveTab] = useState<'description' | 'specifications' | 'reviews'>('description');
+  const [showReviewForm, setShowReviewForm] = useState(false);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState('');
+  const [pincode, setPincode] = useState('');
+  const [pincodeStatus, setPincodeStatus] = useState<'idle' | 'checking' | 'serviceable' | 'not-serviceable'>('idle');
+  const [deliveryInfo, setDeliveryInfo] = useState<{ deliveryDate?: string; deliveryCharge?: number } | null>(null);
   
   // Get wishlist status from Redux, default to false if not authenticated
   const isWishlisted = (currentProduct && isAuthenticated) ? (wishlistStatus[currentProduct.id] || false) : false;
@@ -44,13 +53,16 @@ const ProductDetailFlipkartStyle: React.FC = () => {
         dispatch(fetchProductById(productId));
         dispatch(fetchRecommendations(productId));
         dispatch(fetchFrequentlyBoughtTogether(productId));
+        dispatch(fetchReviewsByProduct(productId));
         // Check wishlist status if user is authenticated
         if (isAuthenticated && user) {
           dispatch(checkWishlistStatus(productId));
+          dispatch(checkCanReview(productId));
         }
         // Reset image error state when product changes
         setImageError(false);
         setSelectedImage(0);
+        dispatch(clearReviews());
       }
     }
   }, [id, dispatch, isAuthenticated, user]);
@@ -130,6 +142,125 @@ const ProductDetailFlipkartStyle: React.FC = () => {
     if (currentProduct) {
       dispatch(addToCart({ userId, productId: currentProduct.id, quantity }));
       navigate('/checkout');
+    }
+  };
+
+  // Pincode validation and serviceability check
+  const checkPincodeServiceability = async (pin: string) => {
+    if (!currentProduct) {
+      toast.error('Product information not available');
+      return;
+    }
+
+    // Validate pincode format (6 digits)
+    if (!/^\d{6}$/.test(pin)) {
+      toast.error('Please enter a valid 6-digit pincode');
+      return;
+    }
+
+    setPincodeStatus('checking');
+    setDeliveryInfo(null);
+
+    // Simulate API call with realistic delay
+    await new Promise(resolve => setTimeout(resolve, 1500));
+
+    // Simulate serviceability logic
+    // In a real application, this would be an API call to check serviceability
+    // For demo purposes, we'll use some logic:
+    // - Pincodes starting with 1-4 are serviceable (major cities)
+    // - Pincodes starting with 5-6 are serviceable with longer delivery time
+    // - Pincodes starting with 7-9 are not serviceable (remote areas)
+    const firstDigit = parseInt(pin[0]);
+    
+    if (firstDigit >= 1 && firstDigit <= 4) {
+      // Serviceable - fast delivery
+      const deliveryDate = new Date();
+      deliveryDate.setDate(deliveryDate.getDate() + 2); // 2 days
+      setPincodeStatus('serviceable');
+      setDeliveryInfo({
+        deliveryDate: deliveryDate.toLocaleDateString('en-IN', { 
+          weekday: 'long', 
+          year: 'numeric', 
+          month: 'long', 
+          day: 'numeric' 
+        }),
+        deliveryCharge: 0 // Free delivery
+      });
+      toast.success('Delivery available to this pincode!');
+    } else if (firstDigit >= 5 && firstDigit <= 6) {
+      // Serviceable - standard delivery
+      const deliveryDate = new Date();
+      deliveryDate.setDate(deliveryDate.getDate() + 4); // 4 days
+      setPincodeStatus('serviceable');
+      setDeliveryInfo({
+        deliveryDate: deliveryDate.toLocaleDateString('en-IN', { 
+          weekday: 'long', 
+          year: 'numeric', 
+          month: 'long', 
+          day: 'numeric' 
+        }),
+        deliveryCharge: currentProduct && currentProduct.price > 50000 ? 0 : 50
+      });
+      toast.success('Delivery available to this pincode!');
+    } else {
+      // Not serviceable
+      setPincodeStatus('not-serviceable');
+      setDeliveryInfo(null);
+      toast.error('Sorry, delivery is not available to this pincode');
+    }
+  };
+
+  const handlePincodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.replace(/\D/g, ''); // Only allow digits
+    if (value.length <= 6) {
+      setPincode(value);
+      // Reset status when user changes pincode
+      if (pincodeStatus !== 'idle') {
+        setPincodeStatus('idle');
+        setDeliveryInfo(null);
+      }
+    }
+  };
+
+  const handlePincodeSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (pincode.length === 6) {
+      checkPincodeServiceability(pincode);
+    } else {
+      toast.error('Please enter a valid 6-digit pincode');
+    }
+  };
+
+  const handleSubmitReview = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentProduct || !isAuthenticated) {
+      toast.error('Please login to submit a review');
+      navigate('/login');
+      return;
+    }
+
+    if (!reviewComment.trim()) {
+      toast.error('Please enter a review comment');
+      return;
+    }
+
+    try {
+      await dispatch(createReview({
+        productId: currentProduct.id,
+        rating: reviewRating,
+        comment: reviewComment,
+      })).unwrap();
+      
+      toast.success('Review submitted successfully!');
+      setReviewComment('');
+      setReviewRating(5);
+      setShowReviewForm(false);
+      
+      // Refresh reviews
+      dispatch(fetchReviewsByProduct(currentProduct.id));
+      dispatch(checkCanReview(currentProduct.id));
+    } catch (error: any) {
+      toast.error(error || 'Failed to submit review');
     }
   };
 
@@ -949,7 +1080,7 @@ const ProductDetailFlipkartStyle: React.FC = () => {
   if (loading) {
     return (
       <div className="bg-gray-50 min-h-screen">
-        <div className="container mx-auto px-4 py-8">
+        <div className="container mx-auto px-2 sm:px-4 lg:px-6 py-8 max-w-[98%] xl:max-w-[95%]">
           <div className="flex items-center justify-center min-h-[400px]">
             <div className="text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
@@ -970,7 +1101,7 @@ const ProductDetailFlipkartStyle: React.FC = () => {
     
     return (
       <div className="bg-gray-50 min-h-screen">
-        <div className="container mx-auto px-4 py-8">
+        <div className="container mx-auto px-2 sm:px-4 lg:px-6 py-8 max-w-[98%] xl:max-w-[95%]">
           <div className="text-center py-12">
             <h2 className="text-2xl font-bold text-gray-800 mb-4">Product not found</h2>
             <p className="text-gray-600 mb-6">{errorMessage}</p>
@@ -1005,8 +1136,8 @@ const ProductDetailFlipkartStyle: React.FC = () => {
   }
 
   return (
-    <div className="bg-gray-50 min-h-screen">
-      <div className="container mx-auto px-4 py-6">
+      <div className="bg-gray-50 min-h-screen">
+        <div className="container mx-auto px-2 sm:px-4 lg:px-6 py-6 max-w-[98%] xl:max-w-[95%]">
         {/* Breadcrumb Navigation */}
         <div className="flex items-center gap-2 text-sm text-gray-600 mb-4">
           <button onClick={() => navigate('/')} className="hover:text-primary-600">Home</button>
@@ -1148,19 +1279,71 @@ const ProductDetailFlipkartStyle: React.FC = () => {
               <div className="mb-6 p-4 bg-blue-50 rounded-lg">
                 <div className="flex items-start gap-3 mb-3">
                   <TruckIcon className="w-6 h-6 text-blue-600 mt-1 flex-shrink-0" />
-                  <div>
+                  <div className="flex-1">
                     <p className="font-semibold text-gray-900">Delivery</p>
-                    <p className="text-sm text-gray-600">Enter pincode for delivery options</p>
-                    <div className="flex gap-2 mt-2">
+                    <p className="text-sm text-gray-600 mb-2">Enter pincode for delivery options</p>
+                    <form onSubmit={handlePincodeSubmit} className="flex gap-2">
                       <input
                         type="text"
-                        placeholder="Enter pincode"
-                        className="px-3 py-1 border border-gray-300 rounded text-sm w-32"
+                        value={pincode}
+                        onChange={handlePincodeChange}
+                        placeholder="Enter 6-digit pincode"
+                        maxLength={6}
+                        className="px-3 py-1 border border-gray-300 rounded text-sm w-36 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                       />
-                      <button className="px-4 py-1 bg-primary-600 text-white rounded text-sm hover:bg-primary-700">
-                        Check
+                      <button 
+                        type="submit"
+                        disabled={pincodeStatus === 'checking' || pincode.length !== 6}
+                        className="px-4 py-1 bg-primary-600 text-white rounded text-sm hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                      >
+                        {pincodeStatus === 'checking' ? 'Checking...' : 'Check'}
                       </button>
-                    </div>
+                    </form>
+                    
+                    {/* Pincode Status Messages */}
+                    {pincodeStatus === 'checking' && (
+                      <div className="mt-2 flex items-center gap-2 text-sm text-gray-600">
+                        <ArrowPathIcon className="w-4 h-4 animate-spin" />
+                        <span>Checking serviceability...</span>
+                      </div>
+                    )}
+                    
+                    {pincodeStatus === 'serviceable' && deliveryInfo && (
+                      <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                        <div className="flex items-start gap-2 mb-2">
+                          <CheckIcon className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
+                          <div className="flex-1">
+                            <p className="text-sm font-semibold text-green-800">Delivery Available!</p>
+                            <p className="text-xs text-green-700 mt-1">
+                              Expected delivery by <span className="font-semibold">{deliveryInfo.deliveryDate}</span>
+                            </p>
+                            {deliveryInfo.deliveryCharge === 0 ? (
+                              <p className="text-xs text-green-700 mt-1">
+                                <span className="font-semibold">Free</span> delivery
+                              </p>
+                            ) : (
+                              <p className="text-xs text-green-700 mt-1">
+                                Delivery charge: <span className="font-semibold">₹{deliveryInfo.deliveryCharge}</span>
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {pincodeStatus === 'not-serviceable' && (
+                      <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                        <div className="flex items-start gap-2">
+                          <XMarkIcon className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
+                          <div>
+                            <p className="text-sm font-semibold text-red-800">Delivery Not Available</p>
+                            <p className="text-xs text-red-700 mt-1">
+                              Sorry, we currently don't deliver to this pincode. Please try a different pincode.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
@@ -1290,7 +1473,7 @@ const ProductDetailFlipkartStyle: React.FC = () => {
                     : 'text-gray-600 hover:text-primary-600'
                 }`}
               >
-                Reviews ({currentProduct.reviewCount})
+                Reviews ({reviews.length})
               </button>
             </div>
           </div>
@@ -1329,28 +1512,120 @@ const ProductDetailFlipkartStyle: React.FC = () => {
 
             {activeTab === 'reviews' && (
               <div>
-                <h3 className="font-semibold text-gray-900 mb-4">Customer Reviews</h3>
-                <div className="space-y-4">
-                  {[1, 2, 3].map((review) => (
-                    <div key={review} className="border-b border-gray-200 pb-4">
-                      <div className="flex items-center gap-2 mb-2">
-                        <div className="flex items-center">
-                          {[...Array(5)].map((_, i) => (
-                            <StarIconSolid
-                              key={i}
-                              className={`w-4 h-4 ${i < currentProduct.rating ? 'text-yellow-400' : 'text-gray-300'}`}
-                            />
-                          ))}
-                        </div>
-                        <span className="text-sm font-semibold text-gray-900">Customer {review}</span>
-                        <span className="text-xs text-gray-500">Verified Purchase</span>
-                      </div>
-                      <p className="text-gray-700 text-sm">
-                        Great product! Highly recommended. {currentProduct.description}
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-semibold text-gray-900">Customer Reviews ({reviews.length})</h3>
+                  {isAuthenticated && (
+                    canReview ? (
+                      <button
+                        onClick={() => setShowReviewForm(!showReviewForm)}
+                        className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition text-sm font-medium"
+                      >
+                        {showReviewForm ? 'Cancel' : 'Write a Review'}
+                      </button>
+                    ) : (
+                      <p className="text-sm text-gray-500">
+                        {reviewReason || 'Purchase this product to write a review'}
                       </p>
-                    </div>
-                  ))}
+                    )
+                  )}
                 </div>
+
+                {/* Review Form */}
+                {showReviewForm && isAuthenticated && canReview && (
+                  <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                    <h4 className="font-semibold text-gray-900 mb-3">Write Your Review</h4>
+                    <form onSubmit={handleSubmitReview} className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Rating</label>
+                        <div className="flex items-center gap-2">
+                          {[1, 2, 3, 4, 5].map((rating) => (
+                            <button
+                              key={rating}
+                              type="button"
+                              onClick={() => setReviewRating(rating)}
+                              className="focus:outline-none"
+                            >
+                              <StarIconSolid
+                                className={`w-6 h-6 ${
+                                  rating <= reviewRating ? 'text-yellow-400' : 'text-gray-300'
+                                } transition`}
+                              />
+                            </button>
+                          ))}
+                          <span className="text-sm text-gray-600 ml-2">{reviewRating} out of 5</span>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Your Review</label>
+                        <textarea
+                          value={reviewComment}
+                          onChange={(e) => setReviewComment(e.target.value)}
+                          rows={4}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                          placeholder="Share your experience with this product..."
+                          required
+                        />
+                      </div>
+                      <button
+                        type="submit"
+                        className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition font-medium"
+                      >
+                        Submit Review
+                      </button>
+                    </form>
+                  </div>
+                )}
+
+                {/* Reviews List */}
+                {reviewsLoading ? (
+                  <div className="text-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto"></div>
+                    <p className="text-gray-600 mt-2">Loading reviews...</p>
+                  </div>
+                ) : reviews.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <p>No reviews yet. Be the first to review this product!</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {reviews.map((review) => (
+                      <div key={review.id} className="border-b border-gray-200 pb-4 last:border-b-0">
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <div className="flex items-center">
+                              {[...Array(5)].map((_, i) => (
+                                <StarIconSolid
+                                  key={i}
+                                  className={`w-4 h-4 ${
+                                    i < review.rating ? 'text-yellow-400' : 'text-gray-300'
+                                  }`}
+                                />
+                              ))}
+                            </div>
+                            <span className="text-sm font-semibold text-gray-900">
+                              {review.reviewerName || 'Customer'}
+                            </span>
+                            {review.verifiedPurchase && (
+                              <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">
+                                Verified Purchase
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-xs text-gray-500">
+                            {new Date(review.createdAt).toLocaleDateString('en-IN', {
+                              year: 'numeric',
+                              month: 'short',
+                              day: 'numeric'
+                            })}
+                          </span>
+                        </div>
+                        {review.comment && (
+                          <p className="text-gray-700 text-sm mt-2">{review.comment}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>

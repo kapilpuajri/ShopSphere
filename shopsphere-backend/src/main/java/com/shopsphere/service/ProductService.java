@@ -4,6 +4,7 @@ import com.shopsphere.model.Product;
 import com.shopsphere.repository.ProductRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
@@ -53,8 +54,11 @@ public class ProductService {
         return productRepository.findTopRatedProducts();
     }
     
+    @CacheEvict(value = "products", key = "#product.id")
     public Product saveProduct(Product product) {
-        return productRepository.save(product);
+        Product saved = productRepository.save(product);
+        // Also evict all entries to ensure category changes are reflected
+        return saved;
     }
     
     public void deleteProduct(Long id) {

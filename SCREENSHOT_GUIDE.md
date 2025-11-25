@@ -177,3 +177,4 @@ Once you've added all screenshots to the `screenshots/` directory:
 - Open `ShopSphere_Project_File.html` in browser and print to PDF
 
 
+

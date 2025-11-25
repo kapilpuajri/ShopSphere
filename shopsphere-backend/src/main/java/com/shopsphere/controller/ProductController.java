@@ -78,5 +78,28 @@ public class ProductController {
     public ResponseEntity<Product> createProduct(@RequestBody Product product) {
         return ResponseEntity.ok(productService.saveProduct(product));
     }
+    
+    @PutMapping("/{id}")
+    public ResponseEntity<Product> updateProduct(@PathVariable Long id, @RequestBody Product product) {
+        try {
+            return productService.getProductById(id)
+                .map(existingProduct -> {
+                    // Update fields
+                    if (product.getName() != null) existingProduct.setName(product.getName());
+                    if (product.getDescription() != null) existingProduct.setDescription(product.getDescription());
+                    if (product.getPrice() != null) existingProduct.setPrice(product.getPrice());
+                    if (product.getImageUrl() != null) existingProduct.setImageUrl(product.getImageUrl());
+                    if (product.getCategory() != null) existingProduct.setCategory(product.getCategory());
+                    if (product.getStock() != null) existingProduct.setStock(product.getStock());
+                    if (product.getRating() != null) existingProduct.setRating(product.getRating());
+                    if (product.getReviewCount() != null) existingProduct.setReviewCount(product.getReviewCount());
+                    return ResponseEntity.ok(productService.saveProduct(existingProduct));
+                })
+                .orElse(ResponseEntity.notFound().build());
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(500).build();
+        }
+    }
 }
 

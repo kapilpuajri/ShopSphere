@@ -39,23 +39,28 @@ axios.interceptors.response.use(
           // Try to restore authentication - this is critical to get user object
           const result = await store.dispatch(restoreAuth());
           
-          // Update the authorization header with the token
-          const newToken = localStorage.getItem('token');
-          if (newToken && originalRequest.headers) {
-            originalRequest.headers.Authorization = `Bearer ${newToken}`;
+          // Check if restoreAuth was successful (has user data)
+          if (result.type === 'auth/restoreAuth/fulfilled') {
+            // Update the authorization header with the token
+            const newToken = localStorage.getItem('token');
+            if (newToken && originalRequest.headers) {
+              originalRequest.headers.Authorization = `Bearer ${newToken}`;
+            }
+            // Retry the request with the restored auth
+            return axios(originalRequest);
+          } else {
+            // If restoreAuth failed, don't retry - let the error propagate
+            console.error('Auth restoration failed in interceptor');
+            return Promise.reject(error);
           }
-          
-          // Always retry the request after restore attempt
-          // If restore succeeded, we have user. If it failed, we still have token
-          return axios(originalRequest);
         } catch (authError) {
-          // If auth restoration fails, still retry with existing token
+          // If auth restoration throws an error, don't retry
           console.error('Auth restoration error in interceptor:', authError);
-          if (originalRequest.headers) {
-            originalRequest.headers.Authorization = `Bearer ${token}`;
-          }
-          return axios(originalRequest);
+          return Promise.reject(error);
         }
+      } else {
+        // No token, don't retry
+        return Promise.reject(error);
       }
     }
 

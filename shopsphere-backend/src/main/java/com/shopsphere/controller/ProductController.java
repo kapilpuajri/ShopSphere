@@ -101,5 +101,19 @@ public class ProductController {
             return ResponseEntity.status(500).build();
         }
     }
+    
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteProduct(@PathVariable Long id) {
+        try {
+            if (productService.getProductById(id).isPresent()) {
+                productService.deleteProduct(id);
+                return ResponseEntity.ok().build();
+            }
+            return ResponseEntity.notFound().build();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(500).build();
+        }
+    }
 }
 

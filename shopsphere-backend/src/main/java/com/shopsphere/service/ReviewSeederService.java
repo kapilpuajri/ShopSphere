@@ -131,11 +131,16 @@ public class ReviewSeederService implements CommandLineRunner {
                 // Get existing review count for this product
                 long existingReviewsForProduct = reviewRepository.findByProductIdOrderByCreatedAtDesc(product.getId()).size();
                 
-                // Target number of reviews per product (8-15 reviews for diversity)
-                int targetReviews = 8 + random.nextInt(8); // 8-15 reviews
+                // Target number of reviews per product (2-3 reviews as requested)
+                int targetReviews = 2 + random.nextInt(2); // 2-3 reviews
                 
-                // Calculate how many more reviews to add
-                int numReviewsToAdd = Math.max(0, targetReviews - (int)existingReviewsForProduct);
+                // Always ensure at least 2 reviews per product
+                int numReviewsToAdd = Math.max(0, (int)(targetReviews - existingReviewsForProduct));
+                
+                // If product has no reviews, add at least 2
+                if (existingReviewsForProduct == 0) {
+                    numReviewsToAdd = targetReviews;
+                }
                 
                 // Skip if product already has enough reviews
                 if (numReviewsToAdd <= 0) {

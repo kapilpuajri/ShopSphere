@@ -1,0 +1,357 @@
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAppSelector, useAppDispatch } from '../hooks/redux';
+import { clearCart, updateCartQuantity, removeFromCart, fetchCart } from '../store/slices/cartSlice';
+import axios from 'axios';
+import { toast } from 'react-hot-toast';
+import { formatPrice } from '../utils/currency';
+
+const Checkout: React.FC = () => {
+  const { items } = useAppSelector(state => state.cart);
+  const { user, isAuthenticated } = useAppSelector(state => state.auth);
+  const dispatch = useAppDispatch();
+  const navigate = useNavigate();
+  const userId = user?.id || 1;
+
+  const [formData, setFormData] = useState({
+    shippingAddress: '',
+    city: '',
+    zipCode: '',
+    country: '',
+    phone: '',
+    paymentMethod: 'card',
+  });
+
+  // Load saved shipping address from user profile
+  useEffect(() => {
+    const loadSavedAddress = async () => {
+      if (user?.id) {
+        try {
+          // Axios interceptor handles auth headers automatically
+          const response = await axios.get(`http://localhost:8080/api/auth/profile/${user.id}`);
+          
+          if (response.data) {
+            setFormData(prev => ({
+              ...prev,
+              shippingAddress: response.data.address || '',
+              city: response.data.city || '',
+              zipCode: response.data.zipCode || '',
+              country: response.data.country || '',
+              phone: response.data.phone || '',
+            }));
+          }
+        } catch (error) {
+          // Silently fail - user might not have saved address yet
+          console.log('No saved address found');
+        }
+      }
+    };
+
+    if (isAuthenticated && user?.id) {
+      loadSavedAddress();
+    }
+  }, [user, isAuthenticated]);
+
+  const subtotal = items.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
+  const shipping = 10;
+  const total = subtotal + shipping;
+
+  if (!isAuthenticated) {
+    navigate('/login');
+    return null;
+  }
+
+  if (items.length === 0) {
+    return (
+      <div className="container mx-auto px-2 sm:px-4 lg:px-6 py-12 text-center max-w-[98%] xl:max-w-[95%]">
+        <h2 className="text-2xl font-bold mb-4">Your cart is empty</h2>
+        <button
+          onClick={() => navigate('/products')}
+          className="bg-primary-600 text-white px-6 py-2 rounded-lg hover:bg-primary-700"
+        >
+          Continue Shopping
+        </button>
+      </div>
+    );
+  }
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleQuantityChange = async (productId: number, newQuantity: number) => {
+    if (newQuantity < 1) {
+      // Remove item if quantity is 0 or less
+      dispatch(removeFromCart({ userId, productId }));
+      toast.success('Item removed from cart');
+    } else {
+      try {
+        // Update quantity using the update endpoint
+        const result = await dispatch(updateCartQuantity({ userId, productId, quantity: newQuantity }));
+        if (updateCartQuantity.rejected.match(result)) {
+          // If update fails, refetch cart to get current state
+          dispatch(fetchCart(userId));
+          toast.error('Failed to update quantity. Please try again.');
+        }
+      } catch (error) {
+        console.error('Error updating quantity:', error);
+        // Fallback: refetch cart to get current state
+        dispatch(fetchCart(userId));
+        toast.error('Failed to update quantity. Please try again.');
+      }
+    }
+  };
+
+  const handleIncrement = (e: React.MouseEvent, productId: number, currentQuantity: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    handleQuantityChange(productId, currentQuantity + 1);
+  };
+
+  const handleDecrement = (e: React.MouseEvent, productId: number, currentQuantity: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    handleQuantityChange(productId, currentQuantity - 1);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const orderData = {
+      userId: user?.id,
+      items: items.map(item => ({
+        productId: item.product.id,
+        quantity: item.quantity,
+        price: item.product.price,
+      })),
+      totalAmount: total,
+      shippingAddress: `${formData.shippingAddress}, ${formData.city}, ${formData.zipCode}, ${formData.country}`,
+      paymentMethod: formData.paymentMethod,
+      phone: formData.phone,
+      city: formData.city,
+      zipCode: formData.zipCode,
+      country: formData.country,
+    };
+
+    // For Cash on Delivery, place order directly
+    if (formData.paymentMethod === 'cod') {
+      try {
+        // Axios interceptor handles auth headers automatically
+        const response = await axios.post('http://localhost:8080/api/orders', orderData);
+
+        if (response.status === 200 && response.data) {
+          dispatch(clearCart());
+          toast.success('Order placed successfully!');
+          setTimeout(() => {
+            navigate('/orders');
+          }, 1500);
+        } else {
+          throw new Error('Order creation failed');
+        }
+      } catch (error: any) {
+        console.error('Order placement error:', error);
+        
+        // Don't navigate to login - axios interceptor handles auth
+        // Only show error message
+        const errorMessage = error.response?.data?.error || 
+                            error.response?.data?.message || 
+                            error.message || 
+                            'Failed to place order. Please try again.';
+        toast.error(errorMessage);
+      }
+    } else {
+      // For Card/UPI/PayPal, redirect to payment gateway
+      navigate('/payment', {
+        state: {
+          paymentData: {
+            orderData,
+            totalAmount: total,
+            paymentMethod: formData.paymentMethod,
+          },
+        },
+      });
+    }
+  };
+
+  return (
+    <div className="container mx-auto px-2 sm:px-4 lg:px-6 py-8 max-w-[98%] xl:max-w-[95%]">
+      <h1 className="text-3xl font-bold mb-8">Checkout</h1>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="bg-white p-6 rounded-lg shadow-md">
+              <h2 className="text-xl font-semibold mb-4">Shipping Information</h2>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Full Address
+                  </label>
+                  <input
+                    type="text"
+                    name="shippingAddress"
+                    required
+                    value={formData.shippingAddress}
+                    onChange={handleChange}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
+                    <input
+                      type="text"
+                      name="city"
+                      required
+                      value={formData.city}
+                      onChange={handleChange}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Zip Code</label>
+                    <input
+                      type="text"
+                      name="zipCode"
+                      required
+                      value={formData.zipCode}
+                      onChange={handleChange}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Country</label>
+                  <input
+                    type="text"
+                    name="country"
+                    required
+                    value={formData.country}
+                    onChange={handleChange}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                  <input
+                    type="tel"
+                    name="phone"
+                    required
+                    value={formData.phone}
+                    onChange={handleChange}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white p-6 rounded-lg shadow-md">
+              <h2 className="text-xl font-semibold mb-4">Payment Method</h2>
+              <select
+                name="paymentMethod"
+                value={formData.paymentMethod}
+                onChange={handleChange}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              >
+                <option value="card">Credit/Debit Card</option>
+                <option value="paypal">PayPal</option>
+                <option value="cod">Cash on Delivery</option>
+              </select>
+            </div>
+
+            <button
+              type="submit"
+              className="w-full bg-primary-600 text-white py-3 rounded-lg font-semibold hover:bg-primary-700 transition"
+            >
+              Place Order
+            </button>
+          </form>
+        </div>
+
+        <div className="lg:col-span-1">
+          <div className="bg-white p-6 rounded-lg shadow-md sticky top-24">
+            <h2 className="text-xl font-semibold mb-4">Order Summary</h2>
+            <div className="space-y-4 mb-4">
+              {items.map((item) => (
+                <div key={item.id} className="border-b pb-4 last:border-b-0">
+                  <div className="flex items-start gap-3 mb-2">
+                    <img
+                      src={item.product.imageUrl || 'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=100&h=100&fit=crop'}
+                      alt={item.product.name}
+                      className="w-16 h-16 object-cover rounded"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=100&h=100&fit=crop';
+                      }}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-sm font-semibold text-gray-800 truncate">{item.product.name}</h3>
+                      <p className="text-sm text-gray-600">{formatPrice(item.product.price)}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between mt-2">
+                    <div className="flex items-center border border-gray-300 rounded-lg">
+                      <button
+                        type="button"
+                        onClick={(e) => handleDecrement(e, item.product.id, item.quantity)}
+                        className="px-3 py-1 text-gray-600 hover:bg-gray-100 rounded-l-lg transition"
+                        aria-label="Decrease quantity"
+                      >
+                        −
+                      </button>
+                      <input
+                        type="number"
+                        min="1"
+                        value={item.quantity}
+                        onChange={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          const newQuantity = parseInt(e.target.value) || 1;
+                          handleQuantityChange(item.product.id, newQuantity);
+                        }}
+                        className="w-12 text-center border-0 focus:ring-0 focus:outline-none py-1"
+                      />
+                      <button
+                        type="button"
+                        onClick={(e) => handleIncrement(e, item.product.id, item.quantity)}
+                        className="px-3 py-1 text-gray-600 hover:bg-gray-100 rounded-r-lg transition"
+                        aria-label="Increase quantity"
+                      >
+                        +
+                      </button>
+                    </div>
+                    <span className="text-sm font-semibold">{formatPrice(item.product.price * item.quantity)}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="border-t pt-4 space-y-2">
+              <div className="flex justify-between">
+                <span>Subtotal</span>
+                <span>{formatPrice(subtotal)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Shipping</span>
+                <span>{formatPrice(shipping)}</span>
+              </div>
+              <div className="flex justify-between font-bold text-lg border-t pt-2">
+                <span>Total</span>
+                <span>{formatPrice(total)}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Checkout;
+
+
+
+
+
+
+
+
+

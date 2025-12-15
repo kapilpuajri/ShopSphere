@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { useAppDispatch } from './hooks/redux';
 import { restoreAuth } from './store/slices/authSlice';
+import { useTheme } from './hooks/useTheme';
 import Header from './components/common/Header';
 import Footer from './components/common/Footer';
 import Home from './pages/Home';
@@ -18,9 +19,11 @@ import Orders from './pages/Orders';
 import Wishlist from './pages/Wishlist';
 import Contact from './pages/Contact';
 import SocialMedia from './pages/SocialMedia';
+import AdminDashboard from './pages/AdminDashboard';
 
 function App() {
   const dispatch = useAppDispatch();
+  useTheme(); // Initialize theme
 
   useEffect(() => {
     // Restore authentication state from token on app load
@@ -51,7 +54,7 @@ function App() {
 
   return (
     <Router>
-      <div className="min-h-screen bg-gray-50 flex flex-col">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col transition-colors duration-200">
         <Header />
         <main className="flex-grow">
           <Routes>
@@ -68,6 +71,7 @@ function App() {
             <Route path="/wishlist" element={<Wishlist />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/social/:platform" element={<SocialMedia />} />
+            <Route path="/admin" element={<AdminDashboard />} />
           </Routes>
         </main>
         <Footer />

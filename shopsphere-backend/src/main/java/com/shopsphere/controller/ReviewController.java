@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/reviews")
+@RequestMapping("/reviews")
 @CrossOrigin(origins = "*")
 public class ReviewController {
     
@@ -164,7 +164,7 @@ public class ReviewController {
                     .anyMatch(r -> r.getProductId().equals(productId))) {
                     response.put("reason", "You have already reviewed this product");
                 } else {
-                    response.put("reason", "You can only review products that have been delivered to you");
+                    response.put("reason", "Unable to review this product");
                 }
             }
             return ResponseEntity.ok(response);

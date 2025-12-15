@@ -1,7 +1,5 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import axios from 'axios';
-
-const API_URL = 'http://localhost:8080/api';
+import axios from '../../utils/axiosConfig';
 
 export interface Review {
   id: number;
@@ -34,7 +32,7 @@ const initialState: ReviewState = {
 export const fetchReviewsByProduct = createAsyncThunk(
   'reviews/fetchByProduct',
   async (productId: number) => {
-    const response = await axios.get(`${API_URL}/reviews/product/${productId}`);
+    const response = await axios.get(`/reviews/product/${productId}`);
     return response.data;
   }
 );
@@ -43,15 +41,9 @@ export const createReview = createAsyncThunk(
   'reviews/create',
   async ({ productId, rating, comment }: { productId: number; rating: number; comment: string }, { rejectWithValue }) => {
     try {
-      const token = localStorage.getItem('token');
       const response = await axios.post(
-        `${API_URL}/reviews`,
-        { productId, rating, comment },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
+        `/reviews`,
+        { productId, rating, comment }
       );
       return response.data;
     } catch (error: any) {
@@ -64,12 +56,7 @@ export const checkCanReview = createAsyncThunk(
   'reviews/checkCanReview',
   async (productId: number) => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_URL}/reviews/can-review/${productId}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const response = await axios.get(`/reviews/can-review/${productId}`);
       return response.data;
     } catch (error) {
       return { canReview: false, reason: 'Unable to check review eligibility' };

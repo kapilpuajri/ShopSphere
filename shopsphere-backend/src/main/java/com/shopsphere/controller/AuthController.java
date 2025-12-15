@@ -55,12 +55,13 @@ public class AuthController {
             
             Map<String, Object> response = new HashMap<>();
             response.put("token", token);
-            response.put("user", Map.of(
-                "id", savedUser.getId(),
-                "email", savedUser.getEmail(),
-                "firstName", savedUser.getFirstName(),
-                "lastName", savedUser.getLastName()
-            ));
+            Map<String, Object> userMap = new HashMap<>();
+            userMap.put("id", savedUser.getId());
+            userMap.put("email", savedUser.getEmail());
+            userMap.put("firstName", savedUser.getFirstName());
+            userMap.put("lastName", savedUser.getLastName());
+            userMap.put("role", savedUser.getRole().toString());
+            response.put("user", userMap);
             
             return ResponseEntity.ok(response);
         } catch (Exception e) {
@@ -88,12 +89,13 @@ public class AuthController {
             
             Map<String, Object> response = new HashMap<>();
             response.put("token", token);
-            response.put("user", Map.of(
-                "id", user.getId(),
-                "email", user.getEmail(),
-                "firstName", user.getFirstName(),
-                "lastName", user.getLastName()
-            ));
+            Map<String, Object> userMap = new HashMap<>();
+            userMap.put("id", user.getId());
+            userMap.put("email", user.getEmail());
+            userMap.put("firstName", user.getFirstName());
+            userMap.put("lastName", user.getLastName());
+            userMap.put("role", user.getRole().toString());
+            response.put("user", userMap);
             
             return ResponseEntity.ok(response);
         } catch (Exception e) {
@@ -169,12 +171,13 @@ public class AuthController {
             
             User user = userOpt.get();
             Map<String, Object> response = new HashMap<>();
-            response.put("user", Map.of(
-                "id", user.getId(),
-                "email", user.getEmail(),
-                "firstName", user.getFirstName() != null ? user.getFirstName() : "",
-                "lastName", user.getLastName() != null ? user.getLastName() : ""
-            ));
+            Map<String, Object> userMap = new HashMap<>();
+            userMap.put("id", user.getId());
+            userMap.put("email", user.getEmail());
+            userMap.put("firstName", user.getFirstName() != null ? user.getFirstName() : "");
+            userMap.put("lastName", user.getLastName() != null ? user.getLastName() : "");
+            userMap.put("role", user.getRole().toString());
+            response.put("user", userMap);
             
             return ResponseEntity.ok(response);
         } catch (Exception e) {

@@ -1511,30 +1511,28 @@ const ProductDetailFlipkartStyle: React.FC = () => {
             {activeTab === 'reviews' && (
               <div>
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-semibold text-gray-900">Customer Reviews ({reviews.length})</h3>
-                  {isAuthenticated && (
-                    canReview ? (
-                      <button
-                        onClick={() => setShowReviewForm(!showReviewForm)}
-                        className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition text-sm font-medium"
-                      >
-                        {showReviewForm ? 'Cancel' : 'Write a Review'}
-                      </button>
-                    ) : (
-                      <p className="text-sm text-gray-500">
-                        {reviewReason || 'Purchase this product to write a review'}
-                      </p>
-                    )
+                  <h3 className="font-semibold text-gray-900 dark:text-white">Customer Reviews ({reviews.length})</h3>
+                  {isAuthenticated ? (
+                    <button
+                      onClick={() => setShowReviewForm(!showReviewForm)}
+                      className="px-4 py-2 bg-primary-600 dark:bg-primary-500 text-white rounded-lg hover:bg-primary-700 dark:hover:bg-primary-600 transition text-sm font-medium"
+                    >
+                      {showReviewForm ? 'Cancel' : 'Write a Review'}
+                    </button>
+                  ) : (
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      Please login to write a review
+                    </p>
                   )}
                 </div>
 
                 {/* Review Form */}
-                {showReviewForm && isAuthenticated && canReview && (
-                  <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
-                    <h4 className="font-semibold text-gray-900 mb-3">Write Your Review</h4>
+                {showReviewForm && isAuthenticated && (
+                  <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 transition-colors duration-200">
+                    <h4 className="font-semibold text-gray-900 dark:text-white mb-3">Write Your Review</h4>
                     <form onSubmit={handleSubmitReview} className="space-y-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Rating</label>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Rating</label>
                         <div className="flex items-center gap-2">
                           {[1, 2, 3, 4, 5].map((rating) => (
                             <button
@@ -1545,28 +1543,28 @@ const ProductDetailFlipkartStyle: React.FC = () => {
                             >
                               <StarIconSolid
                                 className={`w-6 h-6 ${
-                                  rating <= reviewRating ? 'text-yellow-400' : 'text-gray-300'
+                                  rating <= reviewRating ? 'text-yellow-400' : 'text-gray-300 dark:text-gray-600'
                                 } transition`}
                               />
                             </button>
                           ))}
-                          <span className="text-sm text-gray-600 ml-2">{reviewRating} out of 5</span>
+                          <span className="text-sm text-gray-600 dark:text-gray-400 ml-2">{reviewRating} out of 5</span>
                         </div>
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Your Review</label>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Your Review</label>
                         <textarea
                           value={reviewComment}
                           onChange={(e) => setReviewComment(e.target.value)}
                           rows={4}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                          placeholder="Share your experience with this product..."
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                          placeholder="Share your experience with this product... (e.g., This mobile is sexy!)"
                           required
                         />
                       </div>
                       <button
                         type="submit"
-                        className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition font-medium"
+                        className="px-6 py-2 bg-primary-600 dark:bg-primary-500 text-white rounded-lg hover:bg-primary-700 dark:hover:bg-primary-600 transition font-medium"
                       >
                         Submit Review
                       </button>
@@ -1581,13 +1579,13 @@ const ProductDetailFlipkartStyle: React.FC = () => {
                     <p className="text-gray-600 mt-2">Loading reviews...</p>
                   </div>
                 ) : reviews.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500">
+                  <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                     <p>No reviews yet. Be the first to review this product!</p>
                   </div>
                 ) : (
                   <div className="space-y-4">
                     {reviews.map((review) => (
-                      <div key={review.id} className="border-b border-gray-200 pb-4 last:border-b-0">
+                      <div key={review.id} className="border-b border-gray-200 dark:border-gray-700 pb-4 last:border-b-0">
                         <div className="flex items-start justify-between mb-2">
                           <div className="flex items-center gap-2">
                             <div className="flex items-center">
@@ -1595,21 +1593,21 @@ const ProductDetailFlipkartStyle: React.FC = () => {
                                 <StarIconSolid
                                   key={i}
                                   className={`w-4 h-4 ${
-                                    i < review.rating ? 'text-yellow-400' : 'text-gray-300'
+                                    i < review.rating ? 'text-yellow-400' : 'text-gray-300 dark:text-gray-600'
                                   }`}
                                 />
                               ))}
                             </div>
-                            <span className="text-sm font-semibold text-gray-900">
+                            <span className="text-sm font-semibold text-gray-900 dark:text-white">
                               {review.reviewerName || 'Customer'}
                             </span>
                             {review.verifiedPurchase && (
-                              <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">
+                              <span className="text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-2 py-0.5 rounded">
                                 Verified Purchase
                               </span>
                             )}
                           </div>
-                          <span className="text-xs text-gray-500">
+                          <span className="text-xs text-gray-500 dark:text-gray-400">
                             {new Date(review.createdAt).toLocaleDateString('en-IN', {
                               year: 'numeric',
                               month: 'short',
@@ -1618,7 +1616,7 @@ const ProductDetailFlipkartStyle: React.FC = () => {
                           </span>
                         </div>
                         {review.comment && (
-                          <p className="text-gray-700 text-sm mt-2">{review.comment}</p>
+                          <p className="text-gray-700 dark:text-gray-300 text-sm mt-2">{review.comment}</p>
                         )}
                       </div>
                     ))}

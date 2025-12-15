@@ -68,11 +68,11 @@ const Cart: React.FC = () => {
 
   return (
     <div className="container mx-auto px-2 sm:px-4 lg:px-6 py-8 max-w-[98%] xl:max-w-[95%]">
-      <h1 className="text-4xl font-bold text-gray-800 mb-8">Shopping Cart</h1>
+      <h1 className="text-4xl font-bold text-gray-800 dark:text-white mb-8">Shopping Cart</h1>
 
       {items.length === 0 ? (
         <div className="text-center py-12">
-          <p className="text-gray-600 text-xl">Your cart is empty</p>
+          <p className="text-gray-600 dark:text-gray-400 text-xl">Your cart is empty</p>
         </div>
       ) : (
         <>
@@ -81,7 +81,7 @@ const Cart: React.FC = () => {
               {items.map((item) => (
                 <div
                   key={item.id}
-                  className="bg-white rounded-lg shadow-md p-6 mb-4 flex flex-col sm:flex-row items-start sm:items-center gap-4"
+                  className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-4 flex flex-col sm:flex-row items-start sm:items-center gap-4 transition-colors duration-200"
                 >
                   <img
                     src={item.product.imageUrl || 'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=100&h=100&fit=crop'}
@@ -92,17 +92,17 @@ const Cart: React.FC = () => {
                     }}
                   />
                   <div className="flex-1 min-w-0">
-                    <h3 className="text-lg font-semibold mb-1">{item.product.name}</h3>
-                    <p className="text-primary-600 font-bold mb-3">
+                    <h3 className="text-lg font-semibold mb-1 text-gray-900 dark:text-white">{item.product.name}</h3>
+                    <p className="text-primary-600 dark:text-primary-400 font-bold mb-3">
                       {formatPrice(item.product.price)}
                     </p>
                     <div className="flex items-center gap-4">
-                      <label className="text-sm text-gray-600 font-medium">Quantity:</label>
-                      <div className="flex items-center border border-gray-300 rounded-lg">
+                      <label className="text-sm text-gray-600 dark:text-gray-400 font-medium">Quantity:</label>
+                      <div className="flex items-center border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700">
                         <button
                           type="button"
                           onClick={(e) => handleDecrement(e, item.product.id, item.quantity)}
-                          className="px-3 py-1 text-gray-600 hover:bg-gray-100 rounded-l-lg transition"
+                          className="px-3 py-1 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-l-lg transition"
                           aria-label="Decrease quantity"
                         >
                           −
@@ -117,25 +117,25 @@ const Cart: React.FC = () => {
                             const newQuantity = parseInt(e.target.value) || 1;
                             handleQuantityChange(item.product.id, newQuantity);
                           }}
-                          className="w-16 text-center border-0 focus:ring-2 focus:ring-primary-500 focus:outline-none py-1"
+                          className="w-16 text-center border-0 bg-transparent text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:outline-none py-1"
                         />
                         <button
                           type="button"
                           onClick={(e) => handleIncrement(e, item.product.id, item.quantity)}
-                          className="px-3 py-1 text-gray-600 hover:bg-gray-100 rounded-r-lg transition"
+                          className="px-3 py-1 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-r-lg transition"
                           aria-label="Increase quantity"
                         >
                           +
                         </button>
                       </div>
-                      <span className="text-sm text-gray-600">
-                        Total: <span className="font-semibold text-gray-800">{formatPrice(item.product.price * item.quantity)}</span>
+                      <span className="text-sm text-gray-600 dark:text-gray-400">
+                        Total: <span className="font-semibold text-gray-800 dark:text-white">{formatPrice(item.product.price * item.quantity)}</span>
                       </span>
                     </div>
                   </div>
                   <button
                     onClick={() => handleRemove(item.product.id)}
-                    className="text-red-600 hover:text-red-800 font-medium px-4 py-2 border border-red-600 rounded-lg hover:bg-red-50 transition self-start sm:self-center"
+                    className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 font-medium px-4 py-2 border border-red-600 dark:border-red-500 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/30 transition self-start sm:self-center"
                   >
                     Remove
                   </button>
@@ -144,18 +144,18 @@ const Cart: React.FC = () => {
             </div>
 
             <div className="lg:col-span-1">
-              <div className="bg-white rounded-lg shadow-md p-6 sticky top-24">
-                <h2 className="text-2xl font-bold mb-4">Order Summary</h2>
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 sticky top-24 transition-colors duration-200">
+                <h2 className="text-2xl font-bold mb-4 text-gray-900 dark:text-white">Order Summary</h2>
                 <div className="space-y-2 mb-4">
-                  <div className="flex justify-between">
+                  <div className="flex justify-between text-gray-700 dark:text-gray-300">
                     <span>Subtotal</span>
                     <span>{formatPrice(total)}</span>
                   </div>
-                  <div className="flex justify-between">
+                  <div className="flex justify-between text-gray-700 dark:text-gray-300">
                     <span>Shipping</span>
                     <span>{formatPrice(10)}</span>
                   </div>
-                  <div className="border-t pt-2 flex justify-between font-bold text-xl">
+                  <div className="border-t border-gray-200 dark:border-gray-700 pt-2 flex justify-between font-bold text-xl text-gray-900 dark:text-white">
                     <span>Total</span>
                     <span>{formatPrice(total + 10)}</span>
                   </div>

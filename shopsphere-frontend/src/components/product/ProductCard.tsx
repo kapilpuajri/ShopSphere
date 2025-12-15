@@ -98,24 +98,61 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   };
 
   const handleWishlist = async (e: React.MouseEvent) => {
+    console.log('🔥 WISHLIST BUTTON CLICKED!', { 
+      productId: product.id, 
+      productName: product.name,
+      isWishlisted,
+      user: user?.id,
+      isAuthenticated 
+    });
     e.stopPropagation();
+    e.preventDefault();
     
-    if (!user || !isAuthenticated) {
+    const token = localStorage.getItem('token');
+    if (!token) {
       toast.error('Please login to add items to wishlist');
       navigate('/login');
       return;
     }
     
+    if (!user || !isAuthenticated) {
+      // Try to restore auth first
+      try {
+        const result = await dispatch(restoreAuth()).unwrap();
+        if (!result || !result.user) {
+          toast.error('Please login to add items to wishlist');
+          navigate('/login');
+          return;
+        }
+      } catch (authError: any) {
+        console.error('Auth restore error:', authError);
+        toast.error('Please login to add items to wishlist');
+        navigate('/login');
+        return;
+      }
+    }
+    
     try {
+      console.log('Wishlist action - productId:', product.id, 'isWishlisted:', isWishlisted, 'user:', user?.id);
       if (isWishlisted) {
-        await dispatch(removeFromWishlist(product.id)).unwrap();
+        const result = await dispatch(removeFromWishlist(product.id)).unwrap();
+        console.log('Remove from wishlist success:', result);
         toast.success('Removed from wishlist');
       } else {
-        await dispatch(addToWishlist(product.id)).unwrap();
+        const result = await dispatch(addToWishlist(product.id)).unwrap();
+        console.log('Add to wishlist success:', result);
         toast.success('Added to wishlist');
       }
     } catch (error: any) {
-      toast.error(error || 'Failed to update wishlist');
+      console.error('Wishlist error details:', {
+        error,
+        message: error?.message,
+        payload: error?.payload,
+        response: error?.response?.data,
+        status: error?.response?.status
+      });
+      const errorMessage = typeof error === 'string' ? error : (error?.payload || error?.message || error?.response?.data?.error || 'Failed to update wishlist');
+      toast.error(errorMessage);
     }
   };
 
@@ -126,7 +163,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   return (
     <div 
       onClick={handleCardClick}
-      className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden hover:shadow-lg transition-all duration-300 cursor-pointer group relative"
+      className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-lg transition-all duration-300 cursor-pointer group relative"
       role="button"
       tabIndex={0}
       onKeyDown={(e) => {
@@ -138,9 +175,19 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     >
       {/* Wishlist Button */}
       <button
-        onClick={handleWishlist}
-        className="absolute top-2 right-2 z-10 p-2 bg-white rounded-full shadow-md hover:bg-gray-100 transition"
-        aria-label="Add to wishlist"
+        onClick={(e) => {
+          console.log('Button onClick fired!', e);
+          handleWishlist(e);
+        }}
+        onMouseDown={(e) => {
+          e.stopPropagation();
+          console.log('Button onMouseDown fired!');
+        }}
+        type="button"
+        className="absolute top-2 right-2 z-50 p-2 bg-white dark:bg-gray-700 rounded-full shadow-md hover:bg-gray-100 dark:hover:bg-gray-600 transition cursor-pointer pointer-events-auto"
+        style={{ zIndex: 999 }}
+        aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
+        title={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
       >
         {isWishlisted ? (
           <HeartIconSolid className="w-5 h-5 text-red-500" />
@@ -150,7 +197,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
       </button>
 
       {/* Product Image */}
-      <div className="relative bg-gray-100 h-64 overflow-hidden">
+      <div className="relative bg-gray-100 dark:bg-gray-700 h-64 overflow-hidden">
         <img
           src={imageError ? defaultImage : (product.imageUrl || defaultImage)}
           alt={product.name}
@@ -166,7 +213,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
 
       {/* Product Info */}
       <div className="p-4">
-        <h3 className="text-sm font-medium text-gray-800 mb-2 line-clamp-2 min-h-[2.5rem]">
+        <h3 className="text-sm font-medium text-gray-800 dark:text-gray-200 mb-2 line-clamp-2 min-h-[2.5rem]">
           {product.name}
         </h3>
         
@@ -176,7 +223,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
             <span>{product.rating.toFixed(1)}</span>
             <span className="ml-1">★</span>
           </div>
-          <span className="text-xs text-gray-500 ml-2">
+          <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">
             ({product.reviewCount})
           </span>
         </div>
@@ -184,15 +231,15 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
         {/* Price */}
         <div className="mb-3">
           <div className="flex items-baseline gap-2">
-            <span className="text-lg font-bold text-gray-900">
+            <span className="text-lg font-bold text-gray-900 dark:text-white">
               {formatPrice(product.price)}
             </span>
             {discount > 0 && (
               <>
-                <span className="text-sm text-gray-500 line-through">
+                <span className="text-sm text-gray-500 dark:text-gray-400 line-through">
                   {formatPrice(originalPrice)}
                 </span>
-                <span className="text-xs text-green-600 font-semibold">
+                <span className="text-xs text-green-600 dark:text-green-400 font-semibold">
                   {discount}% off
                 </span>
               </>
@@ -203,13 +250,13 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
         {/* Stock Status */}
         {product.stock > 0 ? (
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-green-600 font-medium">In Stock</span>
+            <span className="text-xs text-green-600 dark:text-green-400 font-medium">In Stock</span>
             {product.stock < 10 && (
-              <span className="text-xs text-orange-600">Only {product.stock} left!</span>
+              <span className="text-xs text-orange-600 dark:text-orange-400">Only {product.stock} left!</span>
             )}
           </div>
         ) : (
-          <span className="text-xs text-red-600 font-medium mb-2 block">Out of Stock</span>
+          <span className="text-xs text-red-600 dark:text-red-400 font-medium mb-2 block">Out of Stock</span>
         )}
 
         {/* Quick Add to Cart */}
